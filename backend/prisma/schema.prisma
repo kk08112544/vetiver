@@ -1,0 +1,52 @@
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlserver"
+}
+
+/// หัวข้อหลัก = "หน้าจอแอป" แต่ละหน้าในโปสเตอร์ (6 เมนู)
+model Topic {
+  id        Int       @id @default(autoincrement())
+  slug      String    @unique
+  order     Int       @default(0)
+  title     String
+  subtitle  String?
+  icon      String // คีย์ของไอคอน (ใช้ map กับ emoji/รูปบนหน้าเว็บ)
+  accent    String // สีประจำหัวข้อ (hex)
+  intro     String? // ข้อความเกริ่นนำของหน้า
+  sections  Section[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+}
+
+/// เนื้อหาย่อยภายในแต่ละหัวข้อ
+model Section {
+  id      Int     @id @default(autoincrement())
+  order   Int     @default(0)
+  heading String
+  body    String? // ย่อหน้าอธิบาย (ถ้ามี)
+  items   String  @default("[]") // เก็บหัวข้อย่อยเป็น JSON array (service จะ parse ก่อนส่งออก)
+  topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  topicId Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model Admin{
+  id     Int
+  email  String @unique
+  firstName String
+  userName  String @unique
+  password String 
+  role String @default("admin")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
