@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ResponseTopicDto } from './dto/response-topic.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import {
-  calculatePagination,
-  createPaginatedResult,
-} from 'src/common/pagination/paginate.util';
 import { PaginationTopicDto } from './dto/pagination-topic.dto';
 import { PaginatedResult } from 'src/common/pagination/paginate.interface';
 import { paginate } from 'src/common/pagination/paginate.util';
@@ -38,7 +34,7 @@ export class TopicRepositories {
       whereCondition.OR = [
         { title: { contains: options.search } },
         { slug: { contains: options.search } },
-        { subtitle:{contains:options.search}},
+        { subtitle: { contains: options.search } },
       ];
     }
 
@@ -49,9 +45,9 @@ export class TopicRepositories {
         take,
         orderBy: { createdAt: 'asc' },
         include: {
-        sections: true,
-        _count: { select: { sections: true } },
-      },
+          sections: true,
+          _count: { select: { sections: true } },
+        },
       });
 
     const countFn = () => this.prisma.topic.count({ where: whereCondition });
@@ -59,10 +55,10 @@ export class TopicRepositories {
     return paginate(queryFn, countFn, options);
   }
 
-  async findBySlug(slug: string): Promise<ResponseTopicDto | null> {
+  async findById(id: number): Promise<ResponseTopicDto | null> {
     const data = await this.prisma.topic.findUnique({
       where: {
-        slug: String(slug),
+        id: Number(id),
         deletedAt: null,
       },
       include: {

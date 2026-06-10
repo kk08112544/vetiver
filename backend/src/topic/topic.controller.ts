@@ -16,8 +16,8 @@ export class TopicController {
     return this.topicService.findMany(paginationDto);
   }
 
-  @Get(':slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.topicService.findBySlug(slug);
+  @Get(':id')
+  findById(@Param('id') id: number) {
+    return this.topicService.findById(id);
   }
 }

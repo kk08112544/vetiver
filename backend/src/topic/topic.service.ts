@@ -16,8 +16,8 @@ export class TopicService {
     return data;
   }
 
-  async findBySlug(slug: string) {
-    const data = await this.topicRepositories.findBySlug(slug);
+  async findById(id: number) {
+    const data = await this.topicRepositories.findById(id);
     return data;
   }
 }
