@@ -13,10 +13,10 @@
           @click="toggleLeftDrawer"
         />
 
-        <!-- Brand : the glowing "quasar" mark is the signature element -->
+        <!-- Brand : a leaf mark tying the header to the vetiver theme -->
         <q-toolbar-title class="row items-center no-wrap">
-          <div class="quasar-mark q-mr-sm">
-            <q-icon name="hub" size="20px" />
+          <div class="leaf-mark q-mr-sm">
+            <q-icon name="grass" size="20px" />
           </div>
           <span class="brand-text text-weight-bold">ระบบบริหารคลังความรู้หญ้าแฝก</span>
         </q-toolbar-title>
@@ -37,7 +37,7 @@
         </q-input>
 
         <q-btn flat dense round icon="notifications" class="q-mr-xs">
-          <q-badge color="cyan-4" text-color="dark" floating>3</q-badge>
+          <q-badge color="amber-5" text-color="dark" floating>3</q-badge>
           <q-tooltip>การแจ้งเตือน</q-tooltip>
         </q-btn>
 
@@ -74,20 +74,38 @@
           <img src="https://cdn.quasar.dev/img/avatar.png" alt="โปรไฟล์" />
         </q-avatar>
         <div class="text-h6 text-weight-bold">สวัสดี 👋</div>
-        <div class="text-caption text-cyan-2">ยินดีต้อนรับกลับมา</div>
+        <div class="text-caption welcome-sub">ยินดีต้อนรับสู่คลังความรู้หญ้าแฝก</div>
       </div>
 
       <q-scroll-area class="drawer-scroll">
         <q-list padding>
-          <q-item-label header class="section-label">
-            Essential Links
-          </q-item-label>
+          <q-item-label header class="section-label">หัวข้อความรู้</q-item-label>
 
-          <EssentialLink
-            v-for="link in linksList"
-            :key="link.title"
-            v-bind="link"
-          />
+          <q-item
+            v-for="m in menu"
+            :key="m.slug"
+            v-ripple
+            clickable
+            :active="activeMenu === m.slug"
+            active-class="menu-active"
+            class="menu-item"
+            @click="selectMenu(m.slug)"
+          >
+            <q-item-section avatar>
+              <q-avatar
+                size="34px"
+                rounded
+                :style="{ background: m.accent + '22', color: m.accent }"
+              >
+                <q-icon :name="m.icon" size="20px" />
+              </q-avatar>
+            </q-item-section>
+
+            <q-item-section>
+              <q-item-label class="menu-title">{{ m.title }}</q-item-label>
+              <q-item-label caption>{{ m.caption }}</q-item-label>
+            </q-item-section>
+          </q-item>
         </q-list>
       </q-scroll-area>
 
@@ -96,7 +114,7 @@
         <q-btn
           unelevated
           rounded
-          color="primary"
+          color="green-8"
           icon="logout"
           label="ออกจากระบบ"
           class="full-width"
@@ -114,57 +132,30 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useQuasar } from 'quasar';
-import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
 
 const $q = useQuasar();
 
-const linksList: EssentialLinkProps[] = [
-  {
-    title: 'Docs',
-    caption: 'quasar.dev',
-    icon: 'school',
-    link: 'https://quasar.dev',
-  },
-  {
-    title: 'Github',
-    caption: 'github.com/quasarframework',
-    icon: 'code',
-    link: 'https://github.com/quasarframework',
-  },
-  {
-    title: 'Discord Chat Channel',
-    caption: 'chat.quasar.dev',
-    icon: 'chat',
-    link: 'https://chat.quasar.dev',
-  },
-  {
-    title: 'Forum',
-    caption: 'forum.quasar.dev',
-    icon: 'record_voice_over',
-    link: 'https://forum.quasar.dev',
-  },
-  {
-    title: 'Twitter',
-    caption: '@quasarframework',
-    icon: 'rss_feed',
-    link: 'https://twitter.quasar.dev',
-  },
-  {
-    title: 'Facebook',
-    caption: '@QuasarFramework',
-    icon: 'public',
-    link: 'https://facebook.quasar.dev',
-  },
-  {
-    title: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
-    icon: 'favorite',
-    link: 'https://awesome.quasar.dev',
-  },
+interface MenuItem {
+  slug: string;
+  title: string;
+  caption: string;
+  icon: string;
+  accent: string;
+}
+
+// หัวข้อตรงกับข้อมูลในหน้า Index (หญ้าแฝก)
+const menu: MenuItem[] = [
+  { slug: 'what-is-vetiver', title: 'หญ้าแฝกคืออะไร', caption: 'รู้จักหญ้าแฝก', icon: 'help', accent: '#6fa44e' },
+  { slug: 'benefits', title: 'ประโยชน์ของหญ้าแฝก', caption: 'ทำอะไรได้บ้าง', icon: 'eco', accent: '#3f7d3a' },
+  { slug: 'soil-prep', title: 'การเตรียมดิน', caption: 'ก่อนลงปลูก', icon: 'landscape', accent: '#a9772f' },
+  { slug: 'planting', title: 'การปลูกหญ้าแฝก', caption: 'วิธีปลูก', icon: 'grass', accent: '#4f9d56' },
+  { slug: 'care', title: 'การดูแลรักษา', caption: 'ดูแลหลังปลูก', icon: 'water_drop', accent: '#3f8fb0' },
+  { slug: 'usage', title: 'การใช้หญ้าแฝก', caption: 'นำไปใช้จริง', icon: 'recycling', accent: '#7a8c3a' },
 ];
 
 const leftDrawerOpen = ref(false);
 const search = ref('');
+const activeMenu = ref<string>('what-is-vetiver');
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
@@ -173,40 +164,52 @@ function toggleLeftDrawer() {
 function toggleDarkMode() {
   $q.dark.toggle();
 }
+
+function selectMenu(slug: string) {
+  activeMenu.value = slug;
+  // ปิด drawer อัตโนมัติบนจอเล็ก
+  if (!$q.screen.gt.sm) leftDrawerOpen.value = false;
+  // TODO: เชื่อมกับการสลับหัวข้อในหน้า Index
+  // เช่น router.push({ name: 'topic', params: { slug } })
+  // หรือใช้ Pinia store ร่วมกับ IndexPage เพื่อ set activeSlug
+}
 </script>
 
 <style scoped lang="scss">
-/* ── palette ─────────────────────────────
-   space      #0A0E27  deep-space indigo
-   indigo     #1B2559  mid indigo
-   cyan glow  #38E1F0  the luminous accent (used once, with restraint)
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600&display=swap');
+
+/* ── palette (เข้าชุดกับหน้า Index: ใบ/ดิน/น้ำ) ──
+   forest  #2F5E34  botanical green (header)
+   deep    #1B3A20  deep green
+   leaf    #A7D36A  luminous leaf accent (used with restraint)
 */
 
-/* Header: a deep-space gradient with a single soft cyan glow as signature */
+/* Header: a botanical-green gradient with a soft leaf glow as signature */
 .app-header {
   background:
-    radial-gradient(circle at 18% 50%, rgba(56, 225, 240, 0.35), transparent 45%),
-    linear-gradient(120deg, #0a0e27 0%, #1b2559 100%);
-  box-shadow: 0 2px 18px rgba(10, 14, 39, 0.45);
+    radial-gradient(circle at 18% 50%, rgba(167, 211, 106, 0.35), transparent 45%),
+    linear-gradient(120deg, #2f5e34 0%, #1b3a20 100%);
+  box-shadow: 0 2px 18px rgba(20, 40, 20, 0.4);
 }
 
-/* The glowing quasar mark — the one bold thing on the page */
-.quasar-mark {
+/* The glowing leaf mark — the one bold thing on the bar */
+.leaf-mark {
   display: grid;
   place-items: center;
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #7af5ff 0%, #38e1f0 40%, #1b6fa3 100%);
-  color: #04121f;
+  background: radial-gradient(circle at 35% 30%, #d6f0a0 0%, #8cc152 40%, #3f7d3a 100%);
+  color: #16320f;
   box-shadow:
-    0 0 0 2px rgba(56, 225, 240, 0.25),
-    0 0 16px rgba(56, 225, 240, 0.7);
+    0 0 0 2px rgba(167, 211, 106, 0.25),
+    0 0 16px rgba(167, 211, 106, 0.65);
 }
 
 .brand-text {
-  letter-spacing: 0.5px;
-  font-size: 1.1rem;
+  font-family: 'Kanit', sans-serif;
+  letter-spacing: 0.3px;
+  font-size: 1.05rem;
 }
 
 .search-box {
@@ -220,21 +223,19 @@ function toggleDarkMode() {
 
 .avatar-ring {
   box-shadow:
-    0 0 0 2px rgba(56, 225, 240, 0.6),
-    0 0 12px rgba(56, 225, 240, 0.45);
+    0 0 0 2px rgba(167, 211, 106, 0.65),
+    0 0 12px rgba(167, 211, 106, 0.45);
 }
 
 /* Drawer */
-.app-drawer {
-  :deep(.q-drawer) {
-    background: var(--q-drawer-bg, #fff);
-  }
-}
-
 .drawer-hero {
   background:
-    radial-gradient(circle at 80% 0%, rgba(56, 225, 240, 0.4), transparent 55%),
-    linear-gradient(135deg, #0a0e27 0%, #1b2559 100%);
+    radial-gradient(circle at 80% 0%, rgba(167, 211, 106, 0.4), transparent 55%),
+    linear-gradient(135deg, #2f5e34 0%, #1b3a20 100%);
+  font-family: 'Sarabun', sans-serif;
+}
+.welcome-sub {
+  color: #cfe8a8;
 }
 
 .drawer-scroll {
@@ -242,33 +243,41 @@ function toggleDarkMode() {
 }
 
 .section-label {
-  text-transform: uppercase;
+  font-family: 'Kanit', sans-serif;
   letter-spacing: 1px;
   font-weight: 700;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
   opacity: 0.6;
 }
 
-/* Smooth, accent-led hover for each drawer link */
-:deep(.q-item) {
+/* drawer menu items */
+.menu-item {
   border-radius: 12px;
   margin: 3px 10px;
   transition: background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
-
-  &:hover {
-    background: rgba(56, 225, 240, 0.12);
-    transform: translateX(4px);
-    box-shadow: inset 3px 0 0 #38e1f0;
-  }
+}
+.menu-title {
+  font-family: 'Sarabun', sans-serif;
+  font-weight: 600;
+}
+.menu-item:hover {
+  background: rgba(111, 164, 78, 0.12);
+  transform: translateX(4px);
+}
+.menu-active {
+  background: rgba(111, 164, 78, 0.16);
+  box-shadow: inset 3px 0 0 #4f9d56;
+  color: #2f5e34;
 }
 
 /* Respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
   .search-box,
-  :deep(.q-item) {
+  .menu-item {
     transition: none;
   }
-  :deep(.q-item:hover) {
+  .menu-item:hover {
     transform: none;
   }
 }
