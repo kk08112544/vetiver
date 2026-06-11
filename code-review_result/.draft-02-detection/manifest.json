@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "stage": "detection",
+  "status": "in_progress",
+  "scan_mode": "directory",
+  "files": [
+    {
+      "path": "backend/src/main.ts",
+      "status": "in_progress",
+      "detection_types": ["static-defects", "security-vulnerabilities"],
+      "output": "backend-src-main.ts.md"
+    },
+    {
+      "path": "quasar-project/src/boot/axios.ts",
+      "status": "in_progress",
+      "detection_types": ["security-vulnerabilities", "static-defects"],
+      "output": "quasar-project-src-boot-axios.ts.md"
+    },
+    {
+      "path": "quasar-project/quasar.config.ts",
+      "status": "in_progress",
+      "detection_types": ["static-defects"],
+      "output": "quasar-project-quasar.config.ts.md"
+    },
+    {
+      "path": "quasar-project/src/layouts/MainLayout.vue",
+      "status": "in_progress",
+      "detection_types": ["static-defects", "security-vulnerabilities"],
+      "output": "quasar-project-src-layouts-MainLayout.vue.md"
+    },
+    {
+      "path": "quasar-project/src/pages/IndexPage.vue",
+      "status": "in_progress",
+      "detection_types": ["static-defects", "memory-issues"],
+      "output": "quasar-project-src-pages-IndexPage.vue.md"
+    },
+    {
+      "path": "quasar-project/src/pages/SectionPage.vue",
+      "status": "in_progress",
+      "detection_types": ["static-defects", "logical-defects"],
+      "output": "quasar-project-src-pages-SectionPage.vue.md"
+    },
+    {
+      "path": "quasar-project/src/router/routes.ts",
+      "status": "in_progress",
+      "detection_types": ["static-defects"],
+      "output": "quasar-project-src-router-routes.ts.md"
+    }
+  ],
+  "skipped_files": [
+    {
+      "path": "quasar-project/.env",
+      "reason": "Pure configuration file, no code scanning required"
+    },
+    {
+      "path": "quasar-project/package.json",
+      "reason": "Dependency listing, no code scanning required"
+    },
+    {
+      "path": "quasar-project/index.txt",
+      "reason": "Backup/reference copy of IndexPage.vue, not actual application code"
+    },
+    {
+      "path": ".vscode/settings.json",
+      "reason": "IDE configuration, not application code"
+    },
+    {
+      "path": "quasar-project/package-lock.json",
+      "reason": "Auto-generated lock file"
+    }
+  ],
+  "defects": [],
+  "summary": {
+    "total_files": 7,
+    "completed_files": 0,
+    "total_defects": 0,
+    "by_type": {},
+    "by_severity": {}
+  }
+}

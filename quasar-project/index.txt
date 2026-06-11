@@ -1,6 +1,27 @@
 <template>
   <q-page class="vetiver-page">
     <!-- ═══════════════ HERO ═══════════════ -->
+    <header class="hero">
+      <svg class="roots" viewBox="0 0 1200 220" preserveAspectRatio="none" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-linecap="round">
+          <path d="M120 0 C128 70 110 120 124 220" stroke-width="2" opacity="0.5" />
+          <path d="M300 0 C292 80 312 130 298 220" stroke-width="2.4" opacity="0.6" />
+          <path d="M480 0 C488 60 470 140 484 220" stroke-width="1.8" opacity="0.4" />
+          <path d="M650 0 C642 90 662 120 648 220" stroke-width="2.6" opacity="0.65" />
+          <path d="M820 0 C828 70 808 150 822 220" stroke-width="2" opacity="0.5" />
+          <path d="M980 0 C972 80 992 120 978 220" stroke-width="2.3" opacity="0.55" />
+          <path d="M1100 0 C1108 60 1090 140 1104 220" stroke-width="1.8" opacity="0.4" />
+        </g>
+      </svg>
+
+      <div class="hero-inner">
+        <div class="eyebrow">อนุรักษ์ดินและน้ำ</div>
+        <h1 class="hero-title">หญ้าแฝก</h1>
+        <p class="hero-sub">
+          กำแพงธรรมชาติที่หยั่งรากลึก ยึดหน้าดิน ชะลอน้ำ และฟื้นความชุ่มชื้นให้ผืนแผ่นดิน
+        </p>
+      </div>
+    </header>
 
     <!-- ═══════════════ LOADING (skeleton grid ใต้ dialog) ═══════════════ -->
     <section v-if="loading" class="home" aria-busy="true">

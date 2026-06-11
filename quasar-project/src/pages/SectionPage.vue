@@ -1,6 +1,28 @@
 <template>
   <q-page class="vetiver-page">
     <!-- ═══════════════ HERO ═══════════════ -->
+    <header class="hero">
+      <!-- signature: รากหญ้าแฝกหยั่งลงเหมือนกำแพงธรรมชาติ -->
+      <svg class="roots" viewBox="0 0 1200 220" preserveAspectRatio="none" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-linecap="round">
+          <path d="M120 0 C128 70 110 120 124 220" stroke-width="2" opacity="0.5" />
+          <path d="M300 0 C292 80 312 130 298 220" stroke-width="2.4" opacity="0.6" />
+          <path d="M480 0 C488 60 470 140 484 220" stroke-width="1.8" opacity="0.4" />
+          <path d="M650 0 C642 90 662 120 648 220" stroke-width="2.6" opacity="0.65" />
+          <path d="M820 0 C828 70 808 150 822 220" stroke-width="2" opacity="0.5" />
+          <path d="M980 0 C972 80 992 120 978 220" stroke-width="2.3" opacity="0.55" />
+          <path d="M1100 0 C1108 60 1090 140 1104 220" stroke-width="1.8" opacity="0.4" />
+        </g>
+      </svg>
+
+      <div class="hero-inner">
+        <div class="eyebrow">อนุรักษ์ดินและน้ำ</div>
+        <h1 class="hero-title">หญ้าแฝก</h1>
+        <p class="hero-sub">
+          กำแพงธรรมชาติที่หยั่งรากลึก ยึดหน้าดิน ชะลอน้ำ และฟื้นความชุ่มชื้นให้ผืนแผ่นดิน
+        </p>
+      </div>
+    </header>
 
     <!-- ═══════════════ LOADING (skeleton grid ใต้ dialog) ═══════════════ -->
     <section v-if="loading" class="home" aria-busy="true">
@@ -140,14 +162,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
 import axios, { type AxiosError } from 'axios';
 import { api } from 'src/boot/axios';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 /** รูปแบบดิบที่ได้จาก API `/topic/all` (field อาจหายได้) */
 interface TopicApi {
-  id?: number | string;
   slug: string;
   title?: string;
   subtitle?: string;
@@ -159,7 +179,6 @@ interface TopicApi {
 
 /** view-model ที่ component ใช้จริง — normalize แล้ว ทุก field มีค่าแน่นอน */
 interface Topic {
-  id: string; // ใช้เป็น param ของ route /section/:id (id ถ้ามี ไม่งั้น slug)
   slug: string;
   title: string;
   subtitle: string;
@@ -175,8 +194,6 @@ const ICON_PALETTE = ['eco', 'grass', 'landscape', 'water_drop', 'recycling', 'p
 
 /** หยิบค่าจาก palette แบบวนรอบ index */
 const pick = <T,>(arr: readonly T[], i: number): T => arr[i % arr.length]!;
-
-const router = useRouter();
 
 // ─── State ──────────────────────────────────────────────────────────────────
 const topics = ref<Topic[]>([]);
@@ -227,7 +244,6 @@ const stopLoading = (): void => {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 /** แปลงข้อมูลดิบ 1 รายการ → view-model ที่ปลอดภัย */
 const normalizeTopic = (raw: TopicApi, i: number): Topic => ({
-  id: String(raw.id ?? raw.slug),
   slug: raw.slug,
   title: raw.title?.trim() || 'ไม่มีชื่อหัวข้อ',
   subtitle: raw.subtitle?.trim() ?? '',
@@ -278,9 +294,10 @@ const fetchTopics = async (): Promise<void> => {
   }
 };
 
-/** กดหัวข้อ → ไปหน้า /section/:id */
+/** เปิดหัวข้อ — รอเชื่อมกับ route/หน้า detail */
 const openTopic = (t: Topic): void => {
-  void router.push(`/section/${t.id}`);
+  // TODO: นำทางไปหน้ารายละเอียด เช่น router.push({ name: 'topic', params: { slug: t.slug } })
+  void t;
 };
 
 // ─── Lifecycle ──────────────────────────────────────────────────────────────
