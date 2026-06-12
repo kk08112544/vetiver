@@ -62,7 +62,7 @@
       v-model="leftDrawerOpen"
       show-if-above
       :width="280"
-      :mini="sidebarMini"
+      :mini="effectiveMini"
       :mini-width="64"
       :breakpoint="768"
       bordered
@@ -76,21 +76,19 @@
           <div class="drawer-brand-icon">
             <q-icon name="grass" size="22px" color="white" />
           </div>
-          <span v-if="!sidebarMini || sidebarHovered" class="drawer-brand-name">
-            คลังความรู้หญ้าแฝก
-          </span>
+          <span v-if="!effectiveMini" class="drawer-brand-name"> คลังความรู้หญ้าแฝก </span>
         </div>
 
         <!-- Nav -->
         <q-scroll-area class="drawer-scroll">
           <div class="nav-wrap">
-            <div v-if="!sidebarMini || sidebarHovered" class="nav-section-label">หัวข้อความรู้</div>
+            <div v-if="!effectiveMini" class="nav-section-label">หัวข้อความรู้</div>
 
             <!-- LOADING -->
             <template v-if="loading">
               <div v-for="n in 6" :key="n" class="nav-item nav-item--skeleton">
                 <q-skeleton type="QAvatar" size="30px" />
-                <q-skeleton v-if="!sidebarMini || sidebarHovered" type="text" width="62%" />
+                <q-skeleton v-if="!effectiveMini" type="text" width="62%" />
               </div>
             </template>
 
@@ -98,10 +96,10 @@
             <div
               v-else-if="error"
               class="nav-feedback nav-feedback--error"
-              :class="{ 'nav-feedback--mini': sidebarMini && !sidebarHovered }"
+              :class="{ 'nav-feedback--mini': effectiveMini }"
             >
               <q-icon name="cloud_off" size="26px" />
-              <template v-if="!sidebarMini || sidebarHovered">
+              <template v-if="!effectiveMini">
                 <p>{{ error }}</p>
                 <q-btn
                   flat
@@ -118,7 +116,7 @@
             <!-- EMPTY -->
             <div v-else-if="!menu.length" class="nav-feedback">
               <q-icon name="grass" size="26px" />
-              <p v-if="!sidebarMini || sidebarHovered">ยังไม่มีหัวข้อ</p>
+              <p v-if="!effectiveMini">ยังไม่มีหัวข้อ</p>
             </div>
 
             <!-- LIST -->
@@ -147,22 +145,24 @@
                   </q-avatar>
                 </q-item-section>
 
-                <q-item-section v-if="!sidebarMini || sidebarHovered">
+                <q-item-section v-if="!effectiveMini">
                   <q-item-label class="nav-label">{{ m.title }}</q-item-label>
                   <q-item-label caption class="nav-caption">{{ m.caption }}</q-item-label>
                 </q-item-section>
 
-                <q-tooltip
-                  v-if="sidebarMini && !sidebarHovered"
-                  anchor="center right"
-                  self="center left"
-                >
+                <q-tooltip v-if="effectiveMini" anchor="center right" self="center left">
                   {{ m.title }}
                 </q-tooltip>
               </q-item>
             </template>
           </div>
         </q-scroll-area>
+
+        <!-- Collapse toggle (เฉพาะจอใหญ่ที่ drawer ค้างอยู่) -->
+        <div v-if="$q.screen.gt.sm" class="drawer-collapse" @click="toggleMini">
+          <q-icon :name="sidebarMini ? 'chevron_right' : 'chevron_left'" size="20px" />
+          <span v-if="!sidebarMini" class="drawer-collapse-text">ย่อเมนู</span>
+        </div>
       </div>
     </q-drawer>
 
@@ -277,17 +277,47 @@ const $q = useQuasar();
 const router = useRouter();
 const route = useRoute();
 
+// ─── Platform: อุปกรณ์นี้ hover ได้จริงไหม (เมาส์ vs ทัช) ─────────────────────
+/**
+ * true = มีเมาส์/trackpad, false = touch ล้วน → ปิด logic ที่พึ่ง hover
+ * ใช้ matchMedia('(hover: hover)') แทน $q.platform.has.hover
+ * เพราะ type ของ Quasar ไม่ได้ประกาศ field `hover` ไว้
+ */
+const canHover = ref<boolean>(
+  typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+);
+
 // ─── Drawer state (ย่อ/ขยาย เหมือน backoffice) ───────────────────────────────
 const leftDrawerOpen = ref<boolean>(true);
 const sidebarMini = ref<boolean>(false);
 const sidebarHovered = ref<boolean>(false);
 
+/**
+ * สถานะ mini ที่ "ใช้แสดงผลจริง"
+ * - ถ้า user สั่งย่อ (sidebarMini) แต่กำลัง hover อยู่บนอุปกรณ์ที่มีเมาส์ → คลายเป็นเต็มชั่วคราว
+ * - บนทัช (canHover=false) จะไม่มี hover-expand → mini คงสภาพย่อ (แต่จริงๆ ทัชจะใช้ drawer overlay เต็มอยู่แล้ว)
+ */
+const effectiveMini = computed<boolean>(() => {
+  if (!sidebarMini.value) return false;
+  if (canHover.value && sidebarHovered.value) return false;
+  return true;
+});
+
 const toggleLeftDrawer = (): void => {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 };
 
+/** ปุ่มย่อ/ขยาย sidebar (จอใหญ่) */
+const toggleMini = (): void => {
+  sidebarMini.value = !sidebarMini.value;
+  sidebarHovered.value = false;
+};
+
+/** hover-expand ทำงานเฉพาะอุปกรณ์ที่ hover ได้ */
 const onSidebarHover = (state: boolean): void => {
-  if (sidebarMini.value) sidebarHovered.value = state;
+  if (sidebarMini.value && canHover.value) sidebarHovered.value = state;
 };
 
 // ─── Menu state ──────────────────────────────────────────────────────────────
@@ -355,9 +385,6 @@ const fetchTopics = async (): Promise<void> => {
     const res = await api.get<TopicApi[]>('/topic/all', { signal: abortController.signal });
     const data = Array.isArray(res.data) ? res.data : [];
     menu.value = data.map(normalizeMenu);
-    if (menu.value.length && !activeId.value) {
-      void router.replace(`/section/${menu.value[0]!.id}`);
-    }
   } catch (e) {
     if (axios.isCancel(e)) return;
     error.value = resolveError(e);
@@ -420,10 +447,11 @@ $leaf-bright: #a7d36a;
     background 0.2s,
     transform 0.15s !important;
   flex-shrink: 0;
-  &:hover {
-    background: rgba(255, 255, 255, 0.2) !important;
-    transform: scale(1.05);
-  }
+}
+/* feedback แบบทัช: กดแล้วเห็นผลทันที (ใช้ได้ทุกอุปกรณ์) */
+.header-icon-btn:active {
+  background: rgba(255, 255, 255, 0.25) !important;
+  transform: scale(0.96);
 }
 .app-title {
   display: flex;
@@ -590,15 +618,12 @@ $leaf-bright: #a7d36a;
     transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1),
     box-shadow 0.2s ease;
 }
-.nav-item:hover {
-  background: rgba(111, 164, 78, 0.1);
-  transform: translateX(6px);
-}
 .nav-item :deep(.q-avatar) {
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.nav-item:hover :deep(.q-avatar) {
-  transform: scale(1.14) rotate(-6deg);
+/* feedback ตอนแตะ (ทุกอุปกรณ์) */
+.nav-item:active {
+  background: rgba(111, 164, 78, 0.16);
 }
 
 .nav-avatar {
@@ -625,9 +650,6 @@ $leaf-bright: #a7d36a;
 }
 .nav-item--active .nav-caption {
   color: rgba(255, 255, 255, 0.75);
-}
-.nav-item--active:hover {
-  background: linear-gradient(135deg, #1b3a20, #2f5e34, #3f7d3a);
 }
 
 /* skeleton / feedback */
@@ -680,12 +702,13 @@ $leaf-bright: #a7d36a;
   flex-shrink: 0;
   transition: background 0.2s ease;
 }
-.drawer-collapse:hover {
-  background: rgba(111, 164, 78, 0.1);
+.drawer-collapse:active {
+  background: rgba(111, 164, 78, 0.16);
 }
 .drawer-collapse-text {
   font-family: 'Kanit', sans-serif;
   font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 /* ═════════ PAGE ═════════ */
@@ -788,13 +811,9 @@ $leaf-bright: #a7d36a;
   :deep(.q-icon) {
     transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  &:hover {
-    color: #d9efb2;
-    transform: translateX(6px);
-  }
-  &:hover :deep(.q-icon) {
-    transform: scale(1.25) rotate(-8deg);
-  }
+}
+.footer-link:active {
+  color: #d9efb2;
 }
 .footer-link--active {
   color: #d9efb2;
@@ -844,6 +863,36 @@ $leaf-bright: #a7d36a;
   }
 }
 
+/* ═════════ HOVER EFFECTS — เฉพาะอุปกรณ์ที่มีเมาส์จริง ═════════ */
+/* gate ด้วย (hover: hover) เพื่อกัน "hover ค้าง" บนทัช (tap=hover) */
+@media (hover: hover) and (pointer: fine) {
+  .header-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    transform: scale(1.05);
+  }
+  .nav-item:hover {
+    background: rgba(111, 164, 78, 0.1);
+    transform: translateX(6px);
+  }
+  .nav-item:hover :deep(.q-avatar) {
+    transform: scale(1.14) rotate(-6deg);
+  }
+  .nav-item--active:hover {
+    background: linear-gradient(135deg, #1b3a20, #2f5e34, #3f7d3a);
+    transform: translateX(6px);
+  }
+  .drawer-collapse:hover {
+    background: rgba(111, 164, 78, 0.1);
+  }
+  .footer-link:hover {
+    color: #d9efb2;
+    transform: translateX(6px);
+  }
+  .footer-link:hover :deep(.q-icon) {
+    transform: scale(1.25) rotate(-8deg);
+  }
+}
+
 /* a11y */
 @media (prefers-reduced-motion: reduce) {
   .header-icon-btn,
@@ -857,6 +906,7 @@ $leaf-bright: #a7d36a;
   .header-icon-btn:hover,
   .nav-item:hover,
   .nav-item:hover :deep(.q-avatar),
+  .nav-item--active:hover,
   .footer-link:hover,
   .footer-link:hover :deep(.q-icon) {
     transform: none;

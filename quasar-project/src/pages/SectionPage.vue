@@ -1,8 +1,7 @@
 <template>
-  <q-page class="vetiver-page">
-    <!-- ═══════════════ HERO ═══════════════ -->
+  <q-page class="vetiver-page" :style="{ '--c': accent }">
+    <!-- ═══════════════ HERO (หัวข้อหลัก) ═══════════════ -->
     <header class="hero">
-      <!-- signature: รากหญ้าแฝกหยั่งลงเหมือนกำแพงธรรมชาติ -->
       <svg class="roots" viewBox="0 0 1200 220" preserveAspectRatio="none" aria-hidden="true">
         <g fill="none" stroke="currentColor" stroke-linecap="round">
           <path d="M120 0 C128 70 110 120 124 220" stroke-width="2" opacity="0.5" />
@@ -16,25 +15,30 @@
       </svg>
 
       <div class="hero-inner">
-        <div class="eyebrow">อนุรักษ์ดินและน้ำ</div>
-        <h1 class="hero-title">หญ้าแฝก</h1>
-        <p class="hero-sub">
-          กำแพงธรรมชาติที่หยั่งรากลึก ยึดหน้าดิน ชะลอน้ำ และฟื้นความชุ่มชื้นให้ผืนแผ่นดิน
-        </p>
+        <button type="button" class="back-btn" @click="router.push('/')">
+          <q-icon name="arrow_back" size="18px" />
+          <span>กลับ</span>
+        </button>
+
+        <div class="hero-top">
+          <span class="hero-icon"><q-icon :name="topicInfo.icon" size="30px" /></span>
+          <div class="eyebrow" v-if="topicInfo.subtitle">{{ topicInfo.subtitle }}</div>
+        </div>
+
+        <h1 class="hero-title">{{ topicInfo.title }}</h1>
+        <p class="hero-sub" v-if="topicInfo.intro">{{ topicInfo.intro }}</p>
       </div>
     </header>
 
-    <!-- ═══════════════ LOADING (skeleton grid ใต้ dialog) ═══════════════ -->
-    <section v-if="loading" class="home" aria-busy="true">
-      <div class="home-head">
-        <span class="home-eyebrow">เมนูหลัก</span>
-        <h2 class="home-title">กำลังโหลดหัวข้อ…</h2>
-      </div>
-      <div class="app-grid">
-        <div v-for="n in 6" :key="n" class="app-tile app-tile--skeleton">
-          <span class="sk sk-icon" />
-          <span class="sk sk-label" />
-          <span class="sk sk-meta" />
+    <!-- ═══════════════ LOADING (skeleton) ═══════════════ -->
+    <section v-if="loading && !sections.length" class="content" aria-busy="true">
+      <div v-for="n in 3" :key="n" class="sec-card sec-card--skeleton">
+        <div class="sec-head">
+          <span class="sk sk-dot" />
+          <span class="sk sk-heading" />
+        </div>
+        <div class="sec-body">
+          <span class="sk sk-row" v-for="r in 3" :key="r" />
         </div>
       </div>
     </section>
@@ -44,57 +48,98 @@
       <q-icon name="cloud_off" size="42px" />
       <p class="state-title">โหลดข้อมูลไม่สำเร็จ</p>
       <p class="state-detail">{{ error }}</p>
-      <button type="button" class="retry-btn" @click="fetchTopics">
+      <button type="button" class="retry-btn" @click="fetchSections">
         <q-icon name="refresh" size="18px" />
         <span>ลองอีกครั้ง</span>
       </button>
     </div>
 
     <!-- ═══════════════ EMPTY ═══════════════ -->
-    <div v-else-if="!topics.length" class="state state--empty">
+    <div v-else-if="!sections.length" class="state state--empty">
       <q-icon name="grass" size="42px" />
-      <p class="state-title">ยังไม่มีหัวข้อ</p>
-      <p class="state-detail">API ตอบกลับสำเร็จ แต่ยังไม่มีข้อมูลหัวข้อให้แสดง</p>
-      <button type="button" class="retry-btn" @click="fetchTopics">
-        <q-icon name="refresh" size="18px" />
-        <span>โหลดใหม่</span>
+      <p class="state-title">ยังไม่มีหัวข้อย่อย</p>
+      <p class="state-detail">หัวข้อนี้ยังไม่มีเนื้อหาให้แสดง</p>
+      <button type="button" class="retry-btn" @click="goBack">
+        <q-icon name="arrow_back" size="18px" />
+        <span>กลับหน้าหลัก</span>
       </button>
     </div>
 
-    <!-- ═══════════════ LAUNCHER (เมนูหลัก) ═══════════════ -->
-    <section v-else class="home">
-      <div class="home-head">
-        <span class="home-eyebrow">เมนูหลัก</span>
-        <h2 class="home-title">เลือกหัวข้อที่ต้องการเรียนรู้</h2>
+    <!-- ═══════════════ CONTENT ═══════════════ -->
+    <section v-else class="content">
+      <!-- progress bar (เรียนรู้แล้วกี่ %) -->
+      <div class="progress-card">
+        <div class="progress-top">
+          <div class="progress-label">
+            <q-icon name="task_alt" size="18px" />
+            <span>ความคืบหน้า</span>
+          </div>
+          <div class="progress-count">{{ doneCount }} / {{ totalItems }}</div>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" :style="{ width: progressPct + '%' }" />
+        </div>
+        <transition name="fade">
+          <div v-if="progressPct === 100" class="progress-done">
+            <q-icon name="celebration" size="16px" /> เยี่ยมมาก! อ่านครบทุกข้อแล้ว 🌱
+          </div>
+        </transition>
       </div>
 
-      <div class="app-grid">
-        <button
-          v-for="(t, idx) in topics"
-          :key="t.slug"
-          type="button"
-          class="app-tile"
-          :style="{ '--c': t.accent, '--delay': idx * 55 + 'ms' }"
-          @click="openTopic(t)"
-        >
-          <span class="app-icon"><q-icon :name="t.icon" size="32px" /></span>
-          <span class="app-label">{{ t.title }}</span>
-          <span class="app-meta">
-            <template v-if="t.sectionCount > 0">
-              <q-icon name="layers" size="14px" />
-              {{ t.sectionCount }} หัวข้อย่อย
-            </template>
-            <template v-else>เร็วๆ นี้</template>
-          </span>
+      <!-- toggle เปิด/ปิดทั้งหมด -->
+      <div class="content-tools">
+        <span class="content-count">{{ sections.length }} หัวข้อย่อย</span>
+        <button type="button" class="tool-btn" @click="toggleAll">
+          <q-icon :name="allOpen ? 'unfold_less' : 'unfold_more'" size="16px" />
+          {{ allOpen ? 'ย่อทั้งหมด' : 'ขยายทั้งหมด' }}
         </button>
       </div>
 
-      <p class="home-hint">ทั้งหมด {{ topics.length }} หัวข้อ</p>
+      <!-- accordion ของ section -->
+      <div
+        v-for="(s, idx) in sections"
+        :key="s.id"
+        class="sec-card"
+        :class="{ 'sec-card--open': isOpen(s.id) }"
+        :style="{ '--delay': idx * 60 + 'ms' }"
+      >
+        <button type="button" class="sec-head" @click="toggle(s.id)" :aria-expanded="isOpen(s.id)">
+          <span class="sec-order">{{ s.order }}</span>
+          <span class="sec-heading">{{ s.heading }}</span>
+          <span class="sec-badge" v-if="sectionDone(s) === s.items.length && s.items.length">
+            <q-icon name="check_circle" size="16px" />
+          </span>
+          <span class="sec-badge sec-badge--muted" v-else
+            >{{ sectionDone(s) }}/{{ s.items.length }}</span
+          >
+          <q-icon name="expand_more" size="22px" class="sec-chevron" />
+        </button>
+
+        <transition name="expand">
+          <ul v-show="isOpen(s.id)" class="sec-body">
+            <li
+              v-for="(item, i) in s.items"
+              :key="i"
+              class="item"
+              :class="{ 'item--checked': isChecked(s.id, i) }"
+              @click="toggleCheck(s.id, i)"
+            >
+              <span class="item-check">
+                <q-icon
+                  :name="isChecked(s.id, i) ? 'check_circle' : 'radio_button_unchecked'"
+                  size="20px"
+                />
+              </span>
+              <span class="item-text">{{ item }}</span>
+            </li>
+          </ul>
+        </transition>
+      </div>
+
+      <p class="content-foot">ปลูกวันนี้ เพื่อดินและน้ำของวันพรุ่งนี้ 🌱</p>
     </section>
 
-    <footer class="page-foot">ปลูกวันนี้ เพื่อดินและน้ำของวันพรุ่งนี้ 🌱</footer>
-
-    <!-- ═══════════════ LOADING DIALOG (modal — ธีมหญ้าแฝก) ═══════════════ -->
+    <!-- ═══════════════ LOADING DIALOG ═══════════════ -->
     <q-dialog v-model="showLoading" persistent no-backdrop-dismiss>
       <div class="loading-dialog">
         <div class="ld-orb-wrap">
@@ -103,57 +148,17 @@
           <div class="ld-orb-ring2" />
           <div class="ld-orb-inner">🌱</div>
         </div>
-
         <div class="ld-title">กำลังโหลดข้อมูล</div>
         <div class="ld-pct-row">
           <span class="ld-pct-num">{{ loadingPercent }}</span>
           <span class="ld-pct-sym">%</span>
         </div>
         <div class="ld-sub">{{ loadingSteps[loadingStep]?.label ?? 'กำลังเริ่มต้น…' }}</div>
-
-        <div class="ld-steps">
-          <div
-            v-for="(s, i) in loadingSteps"
-            :key="i"
-            class="ld-step-row"
-            :class="{
-              'ld-step-row--done': i < loadingStep,
-              'ld-step-row--active': i === loadingStep,
-              'ld-step-row--pending': i > loadingStep,
-            }"
-          >
-            <div
-              class="ld-step-ic"
-              :class="{
-                'ld-step-ic--done': i < loadingStep,
-                'ld-step-ic--active': i === loadingStep,
-                'ld-step-ic--pending': i > loadingStep,
-              }"
-            >
-              <span v-if="i < loadingStep">✓</span>
-              <span v-else-if="i === loadingStep" class="ld-step-spinner" />
-              <span v-else>·</span>
-            </div>
-            <div class="ld-step-label">{{ s.label }}</div>
-            <div
-              class="ld-step-pct"
-              :class="{
-                'ld-step-pct--done': i < loadingStep,
-                'ld-step-pct--active': i === loadingStep,
-              }"
-            >
-              {{ i < loadingStep ? '✓' : i === loadingStep ? s.pct + '%' : '' }}
-            </div>
-          </div>
-        </div>
-
         <div class="ld-bar-track">
           <div class="ld-bar-fill" :style="{ width: loadingPercent + '%' }" />
         </div>
         <div class="ld-dots">
-          <span class="ld-dot" />
-          <span class="ld-dot" />
-          <span class="ld-dot" />
+          <span class="ld-dot" /><span class="ld-dot" /><span class="ld-dot" />
         </div>
       </div>
     </q-dialog>
@@ -161,57 +166,90 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import axios, { type AxiosError } from 'axios';
 import { api } from 'src/boot/axios';
 
+// ─── Props / route ───────────────────────────────────────────────────────────
+/** รับ id ผ่าน prop หรือ route param (`/topic/:id`) ก็ได้ */
+const props = defineProps<{ id?: number | string }>();
+const route = useRoute();
+const router = useRouter();
+
+const topicId = computed<string>(() => String(props.id ?? route.params.id ?? ''));
+
 // ─── Types ──────────────────────────────────────────────────────────────────
-/** รูปแบบดิบที่ได้จาก API `/topic/all` (field อาจหายได้) */
-interface TopicApi {
+interface TopicMeta {
+  id: number;
   slug: string;
   title?: string;
   subtitle?: string;
   icon?: string;
   accent?: string;
   intro?: string;
-  _count?: { sections?: number };
 }
-
-/** view-model ที่ component ใช้จริง — normalize แล้ว ทุก field มีค่าแน่นอน */
-interface Topic {
-  slug: string;
+/** section ดิบจาก API — `items` เป็น JSON string */
+interface SectionApi {
+  id: number;
+  order: number;
+  heading?: string;
+  body?: string | null;
+  items?: string;
+  topicId: number;
+  topic?: TopicMeta;
+}
+/** envelope ของ list endpoint */
+interface ListResponse {
+  data: SectionApi[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+/** view-model ที่ใช้จริง */
+interface Section {
+  id: number;
+  order: number;
+  heading: string;
+  body: string;
+  items: string[];
+}
+interface TopicInfo {
   title: string;
   subtitle: string;
   intro: string;
   icon: string;
   accent: string;
-  sectionCount: number;
 }
 
-// ─── Design defaults (เผื่อ API ไม่ส่ง accent / icon มา) ──────────────────────
-const ACCENT_PALETTE = ['#6fa44e', '#3f7d3a', '#a9772f', '#4f9d56', '#3f8fb0', '#7a8c3a'] as const;
-const ICON_PALETTE = ['eco', 'grass', 'landscape', 'water_drop', 'recycling', 'park'] as const;
-
-/** หยิบค่าจาก palette แบบวนรอบ index */
-const pick = <T,>(arr: readonly T[], i: number): T => arr[i % arr.length]!;
-
 // ─── State ──────────────────────────────────────────────────────────────────
-const topics = ref<Topic[]>([]);
+const sections = ref<Section[]>([]);
+const topicInfo = ref<TopicInfo>({
+  title: 'หญ้าแฝก',
+  subtitle: '',
+  intro: '',
+  icon: 'grass',
+  accent: '#3f7d3a',
+});
 const loading = ref<boolean>(true);
 const error = ref<string | null>(null);
 
-// ─── Loading dialog (เหมือนหน้า list-sender) ─────────────────────────────────
+const openIds = ref<Set<number>>(new Set());
+const checked = ref<Set<string>>(new Set());
+
+const accent = computed<string>(() => topicInfo.value.accent || '#3f7d3a');
+
+// ─── Loading dialog ──────────────────────────────────────────────────────────
 const showLoading = ref<boolean>(false);
 const loadingStep = ref<number>(0);
 const loadingPercent = ref<number>(0);
 const loadingSteps = [
-  { label: 'โหลดข้อมูลหัวข้อหญ้าแฝก', pct: 80 },
+  { label: 'โหลดเนื้อหาหัวข้อย่อย', pct: 80 },
   { label: 'จัดเรียงและแสดงผล', pct: 100 },
 ] as const;
 
 let pctTimer: ReturnType<typeof setInterval> | null = null;
-
-/** ค่อยๆ ไล่เปอร์เซ็นต์ไปยังเป้าหมายภายใน ~0.8s */
 const animatePct = (target: number): void => {
   if (pctTimer) clearInterval(pctTimer);
   const start = loadingPercent.value;
@@ -225,35 +263,41 @@ const animatePct = (target: number): void => {
     }
   }, 16);
 };
-
 const startLoading = (): void => {
   showLoading.value = true;
   loadingStep.value = 0;
   loadingPercent.value = 0;
   animatePct(5);
 };
-
 const stopLoading = (): void => {
   loadingStep.value = loadingSteps.length;
   animatePct(100);
   setTimeout(() => {
     showLoading.value = false;
-  }, 700);
+  }, 600);
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-/** แปลงข้อมูลดิบ 1 รายการ → view-model ที่ปลอดภัย */
-const normalizeTopic = (raw: TopicApi, i: number): Topic => ({
-  slug: raw.slug,
-  title: raw.title?.trim() || 'ไม่มีชื่อหัวข้อ',
-  subtitle: raw.subtitle?.trim() ?? '',
-  intro: raw.intro?.trim() ?? '',
-  icon: raw.icon?.trim() || pick(ICON_PALETTE, i),
-  accent: raw.accent?.trim() || pick(ACCENT_PALETTE, i),
-  sectionCount: raw._count?.sections ?? 0,
+/** `items` เป็น JSON string -> string[] อย่างปลอดภัย */
+const parseItems = (raw: unknown): string[] => {
+  if (Array.isArray(raw)) return raw.map(String);
+  if (typeof raw !== 'string') return [];
+  try {
+    const v: unknown = JSON.parse(raw);
+    return Array.isArray(v) ? v.map(String) : [];
+  } catch {
+    return [];
+  }
+};
+
+const normalizeSection = (raw: SectionApi): Section => ({
+  id: raw.id,
+  order: raw.order ?? 0,
+  heading: raw.heading?.trim() || 'ไม่มีหัวข้อ',
+  body: raw.body?.trim() ?? '',
+  items: parseItems(raw.items),
 });
 
-/** อ่านข้อความ error ให้สื่อความหมายกับผู้ใช้ */
 const resolveError = (e: unknown): string => {
   const ax = e as AxiosError;
   if (ax.response?.status) return `เซิร์ฟเวอร์ตอบกลับสถานะ ${ax.response.status}`;
@@ -261,11 +305,50 @@ const resolveError = (e: unknown): string => {
   return 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้';
 };
 
+// ─── Interaction ─────────────────────────────────────────────────────────────
+const isOpen = (id: number): boolean => openIds.value.has(id);
+const toggle = (id: number): void => {
+  const next = new Set(openIds.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  openIds.value = next;
+};
+const allOpen = computed<boolean>(
+  () => sections.value.length > 0 && openIds.value.size === sections.value.length,
+);
+const toggleAll = (): void => {
+  openIds.value = allOpen.value ? new Set() : new Set(sections.value.map((s) => s.id));
+};
+
+const keyOf = (sid: number, i: number): string => `${sid}:${i}`;
+const isChecked = (sid: number, i: number): boolean => checked.value.has(keyOf(sid, i));
+const toggleCheck = (sid: number, i: number): void => {
+  const next = new Set(checked.value);
+  const k = keyOf(sid, i);
+  if (next.has(k)) next.delete(k);
+  else next.add(k);
+  checked.value = next;
+};
+const sectionDone = (s: Section): number => s.items.filter((_, i) => isChecked(s.id, i)).length;
+
+const totalItems = computed<number>(() =>
+  sections.value.reduce((sum, s) => sum + s.items.length, 0),
+);
+const doneCount = computed<number>(() => checked.value.size);
+const progressPct = computed<number>(() =>
+  totalItems.value ? Math.round((doneCount.value / totalItems.value) * 100) : 0,
+);
+
 // ─── Data fetching ──────────────────────────────────────────────────────────
 let abortController: AbortController | null = null;
 
-const fetchTopics = async (): Promise<void> => {
-  // ยกเลิก request ก่อนหน้า (กันโหลดซ้อนตอนกด "ลองอีกครั้ง" รัวๆ)
+const fetchSections = async (): Promise<void> => {
+  if (!topicId.value) {
+    error.value = 'ไม่พบรหัสหัวข้อ';
+    loading.value = false;
+    return;
+  }
+
   abortController?.abort();
   abortController = new AbortController();
 
@@ -277,32 +360,46 @@ const fetchTopics = async (): Promise<void> => {
     loadingStep.value = 0;
     animatePct(loadingSteps[0].pct);
 
-    const res = await api.get<TopicApi[]>('/topic/all', { signal: abortController.signal });
-    const data = Array.isArray(res.data) ? res.data : [];
+    const res = await api.get<ListResponse>(`/section/topic/${topicId.value}`, {
+      signal: abortController.signal,
+    });
+    const list = Array.isArray(res.data?.data) ? res.data.data : [];
 
     loadingStep.value = 1;
     animatePct(loadingSteps[1].pct);
 
-    topics.value = data.map(normalizeTopic);
+    // header จาก topic ที่แนบมากับ section แรก
+    const meta = list[0]?.topic;
+    if (meta) {
+      topicInfo.value = {
+        title: meta.title?.trim() || 'หญ้าแฝก',
+        subtitle: meta.subtitle?.trim() ?? '',
+        intro: meta.intro?.trim() ?? '',
+        icon: meta.icon?.trim() || 'grass',
+        accent: meta.accent?.trim() || '#3f7d3a',
+      };
+    }
+
+    sections.value = list.map(normalizeSection).sort((a, b) => a.order - b.order);
+    openIds.value = new Set(sections.value.map((s) => s.id)); // เปิดทุกอันไว้ก่อน
   } catch (e) {
-    if (axios.isCancel(e)) return; // ยกเลิกเอง ไม่นับเป็น error
+    if (axios.isCancel(e)) return;
     error.value = resolveError(e);
-    topics.value = [];
+    sections.value = [];
   } finally {
     loading.value = false;
     stopLoading();
   }
 };
 
-/** เปิดหัวข้อ — รอเชื่อมกับ route/หน้า detail */
-const openTopic = (t: Topic): void => {
-  // TODO: นำทางไปหน้ารายละเอียด เช่น router.push({ name: 'topic', params: { slug: t.slug } })
-  void t;
+const goBack = (): void => {
+  if (window.history.length > 1) router.back();
+  else void router.push({ path: '/' });
 };
 
 // ─── Lifecycle ──────────────────────────────────────────────────────────────
 onMounted(() => {
-  void fetchTopics();
+  void fetchSections();
 });
 onUnmounted(() => {
   abortController?.abort();
@@ -313,7 +410,6 @@ onUnmounted(() => {
 <style scoped lang="scss">
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600&display=swap');
 
-// ─── Design Tokens (grounded in vetiver: leaf · soil · water) ────────────────
 $paper: #f3f5ec;
 $ink: #21291f;
 $ink-soft: #2c3328;
@@ -322,7 +418,6 @@ $forest-deep: #1b3a20;
 $forest-btn: #3f7d3a;
 $leaf: #c4d99a;
 $leaf-bright: #a7d36a;
-$line: #e0e2d4;
 $line-soft: #e6e8da;
 $muted: #7b8270;
 $muted-2: #8b9183;
@@ -331,22 +426,20 @@ $rust: #9c5a3c;
 
 $font-display: 'Kanit', sans-serif;
 $font-body: 'Sarabun', sans-serif;
-$r-tile: 22px;
-$r-icon: 20px;
 
-// ─── Page ────────────────────────────────────────────────────────────────────
 .vetiver-page {
   font-family: $font-body;
   color: $ink;
   background: $paper;
   padding-bottom: 40px;
+  --c: #{$forest-btn};
 }
 
-// ─── Hero ────────────────────────────────────────────────────────────────────
+// ─── Hero ───
 .hero {
   position: relative;
   overflow: hidden;
-  padding: clamp(48px, 9vw, 96px) 24px clamp(40px, 7vw, 72px);
+  padding: clamp(36px, 7vw, 72px) 24px clamp(40px, 7vw, 64px);
   background:
     radial-gradient(circle at 85% -10%, rgba(160, 200, 120, 0.25), transparent 50%),
     linear-gradient(165deg, $forest 0%, $forest-deep 100%);
@@ -356,44 +449,293 @@ $r-icon: 20px;
   position: absolute;
   inset: auto 0 -2px 0;
   width: 100%;
-  height: 220px;
+  height: 200px;
   color: $leaf;
 }
 .hero-inner {
   position: relative;
-  max-width: 880px;
+  max-width: 760px;
   margin: 0 auto;
 }
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: $font-display;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+  margin-bottom: 20px;
+  transition: background 0.18s ease;
+}
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.hero-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.hero-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
 .eyebrow {
-  display: inline-block;
   font-family: $font-display;
   font-weight: 500;
-  letter-spacing: 3px;
-  font-size: 0.78rem;
+  letter-spacing: 2px;
+  font-size: 0.74rem;
   text-transform: uppercase;
   color: $leaf;
   border: 1px solid rgba(196, 217, 154, 0.45);
   border-radius: 999px;
-  padding: 5px 16px;
-  margin-bottom: 18px;
+  padding: 4px 14px;
 }
 .hero-title {
   font-family: $font-display;
   font-weight: 700;
-  font-size: clamp(2.6rem, 9vw, 5rem);
-  line-height: 1.05;
-  margin: 0 0 14px;
+  font-size: clamp(2rem, 6.5vw, 3.4rem);
+  line-height: 1.1;
+  margin: 0 0 12px;
   letter-spacing: -0.5px;
 }
 .hero-sub {
-  font-size: clamp(1rem, 2.4vw, 1.25rem);
+  font-size: clamp(0.95rem, 2.2vw, 1.12rem);
   line-height: 1.7;
   max-width: 600px;
   margin: 0;
   color: rgba(255, 255, 255, 0.88);
 }
 
-// ─── State blocks (error / empty) ────────────────────────────────────────────
+// ─── Content ───
+.content {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(22px, 5vw, 40px) clamp(16px, 5vw, 32px) 8px;
+}
+
+// progress
+.progress-card {
+  background: #fff;
+  border: 1px solid $line-soft;
+  border-radius: 18px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 2px rgba(33, 41, 31, 0.05);
+}
+.progress-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.progress-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: $font-display;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: $ink-soft;
+}
+.progress-count {
+  font-family: $font-display;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--c);
+}
+.progress-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(47, 94, 52, 0.1);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 75%, #1b3a20), var(--c));
+  transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.progress-done {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: $font-display;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: $forest-btn;
+}
+
+// tools
+.content-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.content-count {
+  font-family: $font-display;
+  font-size: 0.85rem;
+  color: $muted-2;
+}
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: $font-display;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 8%, white);
+  border: 1px solid color-mix(in srgb, var(--c) 22%, white);
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.tool-btn:hover {
+  background: color-mix(in srgb, var(--c) 14%, white);
+}
+
+// section card
+.sec-card {
+  background: #fff;
+  border: 1px solid $line-soft;
+  border-radius: 18px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(33, 41, 31, 0.05);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  animation: rise 0.45s both;
+  animation-delay: var(--delay);
+}
+.sec-card--open {
+  border-color: color-mix(in srgb, var(--c) 35%, white);
+  box-shadow: 0 12px 28px -18px color-mix(in srgb, var(--c) 60%, transparent);
+}
+.sec-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 18px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.sec-order {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  font-family: $font-display;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #fff;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--c) 85%, white), var(--c));
+}
+.sec-heading {
+  flex: 1;
+  font-family: $font-display;
+  font-weight: 600;
+  font-size: clamp(0.98rem, 2.6vw, 1.12rem);
+  color: $ink;
+}
+.sec-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: $font-display;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--c);
+}
+.sec-badge--muted {
+  color: $muted-2;
+  background: #f1f3ea;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.sec-chevron {
+  flex-shrink: 0;
+  color: $muted-2;
+  transition: transform 0.28s ease;
+}
+.sec-card--open .sec-chevron {
+  transform: rotate(180deg);
+  color: var(--c);
+}
+
+.sec-body {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px 10px;
+}
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+.item:hover {
+  background: color-mix(in srgb, var(--c) 6%, white);
+}
+.item-check {
+  flex-shrink: 0;
+  color: #c2c9b6;
+  line-height: 1;
+  margin-top: 1px;
+  transition:
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+.item--checked .item-check {
+  color: var(--c);
+  transform: scale(1.08);
+}
+.item-text {
+  font-size: 0.96rem;
+  line-height: 1.5;
+  color: $ink-soft;
+  transition: color 0.18s ease;
+}
+.item--checked .item-text {
+  color: $muted-2;
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--c) 50%, transparent);
+}
+
+.content-foot {
+  text-align: center;
+  font-family: $font-display;
+  color: $muted;
+  font-size: 0.92rem;
+  padding: 24px 16px 8px;
+}
+
+// ─── States ───
 .state {
   max-width: 480px;
   margin: 0 auto;
@@ -442,144 +784,75 @@ $r-icon: 20px;
   filter: brightness(1.06);
 }
 
-// ─── Home launcher ───────────────────────────────────────────────────────────
-.home {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: clamp(28px, 6vw, 56px) clamp(16px, 5vw, 40px) 8px;
-  text-align: center;
-}
-.home-head {
-  margin-bottom: clamp(22px, 5vw, 38px);
-}
-.home-eyebrow {
-  font-family: $font-display;
-  font-size: 0.8rem;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: $eyebrow;
-  font-weight: 500;
-}
-.home-title {
-  font-family: $font-display;
-  font-weight: 600;
-  font-size: clamp(1.4rem, 4.2vw, 2rem);
-  margin: 6px 0 0;
-  color: $ink;
-}
-.app-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: clamp(14px, 3vw, 22px);
-}
-.app-tile {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: clamp(18px, 3.5vw, 26px) 12px 20px;
-  background: #fff;
-  border: 1px solid $line-soft;
-  border-radius: $r-tile;
-  cursor: pointer;
-  text-align: center;
-  box-shadow: 0 1px 2px rgba(33, 41, 31, 0.05);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
-  animation: rise 0.45s both;
-  animation-delay: var(--delay);
-}
-.app-tile:hover {
-  transform: translateY(-4px);
-  border-color: var(--c);
-  box-shadow: 0 18px 34px -18px color-mix(in srgb, var(--c) 70%, transparent);
-}
-.app-tile:focus-visible {
-  outline: 2px solid var(--c);
-  outline-offset: 2px;
-}
-.app-tile:active {
-  transform: translateY(-1px) scale(0.99);
-}
-.app-icon {
-  display: grid;
-  place-items: center;
-  width: clamp(56px, 13vw, 74px);
-  height: clamp(56px, 13vw, 74px);
-  border-radius: $r-icon;
-  color: #fff;
-  background: linear-gradient(150deg, color-mix(in srgb, var(--c) 88%, white), var(--c));
-  box-shadow: 0 10px 20px -10px var(--c);
-}
-.app-label {
-  font-family: $font-display;
-  font-weight: 600;
-  font-size: clamp(0.86rem, 2.4vw, 1.02rem);
-  line-height: 1.25;
-  color: $ink-soft;
-}
-.app-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: $font-display;
-  font-size: 0.74rem;
-  color: $muted-2;
-}
-.home-hint {
-  margin: clamp(20px, 4vw, 30px) 0 0;
-  font-size: 0.9rem;
-  color: $muted-2;
-}
-
-// ─── Skeleton (ระหว่างโหลด) ──────────────────────────────────────────────────
-.app-tile--skeleton {
-  cursor: default;
+// ─── Skeleton ───
+.sec-card--skeleton {
   pointer-events: none;
   animation: none;
 }
+.sec-card--skeleton .sec-head {
+  padding: 16px 18px;
+}
+.sec-card--skeleton .sec-body {
+  padding: 0 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 .sk {
+  display: block;
   border-radius: 8px;
   background: linear-gradient(90deg, #eef0e4 25%, #e3e7d4 50%, #eef0e4 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease infinite;
 }
-.sk-icon {
-  width: clamp(56px, 13vw, 74px);
-  height: clamp(56px, 13vw, 74px);
-  border-radius: $r-icon;
+.sk-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
 }
-.sk-label {
-  width: 70%;
-  height: 14px;
+.sk-heading {
+  width: 55%;
+  height: 16px;
 }
-.sk-meta {
-  width: 45%;
-  height: 10px;
-}
-
-// ─── Footer ──────────────────────────────────────────────────────────────────
-.page-foot {
-  text-align: center;
-  font-family: $font-display;
-  color: $muted;
-  font-size: 0.95rem;
-  padding: 28px 16px 8px;
+.sk-row {
+  width: 80%;
+  height: 13px;
 }
 
-// ═══════════════ LOADING DIALOG (ธีมหญ้าแฝก) ═══════════════
+// ─── Transitions ───
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.28s ease;
+  overflow: hidden;
+}
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+.expand-enter-to,
+.expand-leave-from {
+  opacity: 1;
+  max-height: 600px;
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+// ─── Loading dialog ───
 .loading-dialog {
   background: #fff;
   border-radius: 24px;
   padding: 2rem 1.75rem 1.75rem;
-  width: min(340px, 92vw);
+  width: min(330px, 92vw);
   text-align: center;
   box-shadow: 0 24px 64px rgba(20, 40, 20, 0.22);
   font-family: $font-body;
-  outline: none;
 }
 .ld-orb-wrap {
   position: relative;
@@ -660,91 +933,6 @@ $r-icon: 20px;
   min-height: 1rem;
   margin-bottom: 1rem;
 }
-.ld-steps {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid rgba(47, 94, 52, 0.1);
-  border-radius: 14px;
-  overflow: hidden;
-  margin-bottom: 1rem;
-  text-align: left;
-}
-.ld-step-row {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 9px 13px;
-  border-bottom: 1px solid rgba(47, 94, 52, 0.08);
-  transition: background 0.35s;
-}
-.ld-step-row:last-child {
-  border-bottom: none;
-}
-.ld-step-row--done {
-  background: rgba(79, 157, 86, 0.06);
-}
-.ld-step-row--active {
-  background: rgba(111, 164, 78, 0.09);
-}
-.ld-step-ic {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-}
-.ld-step-ic--done {
-  background: #dcf0c8;
-  color: $forest-btn;
-}
-.ld-step-ic--active {
-  background: #e7f1d9;
-  animation: ldIcPulse 1s ease-in-out infinite;
-}
-.ld-step-ic--pending {
-  background: #f1f3ea;
-  color: #c2c9b6;
-}
-.ld-step-spinner {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  border: 2px solid $forest-btn;
-  border-top-color: transparent;
-  animation: ldSpin 0.7s linear infinite;
-}
-.ld-step-label {
-  flex: 1;
-  font-size: 0.8rem;
-  line-height: 1.35;
-}
-.ld-step-row--done .ld-step-label {
-  color: #4a5443;
-}
-.ld-step-row--active .ld-step-label {
-  color: $forest-deep;
-  font-weight: 700;
-}
-.ld-step-row--pending .ld-step-label {
-  color: #9aa48d;
-}
-.ld-step-pct {
-  font-size: 0.7rem;
-  font-weight: 700;
-  min-width: 28px;
-  text-align: right;
-}
-.ld-step-pct--done {
-  color: $forest-btn;
-}
-.ld-step-pct--active {
-  color: #4f9d56;
-}
 .ld-bar-track {
   height: 6px;
   border-radius: 3px;
@@ -778,7 +966,7 @@ $r-icon: 20px;
   animation-delay: 0.4s;
 }
 
-// ─── Keyframes ───────────────────────────────────────────────────────────────
+// ─── Keyframes ───
 @keyframes rise {
   from {
     opacity: 0;
@@ -811,15 +999,6 @@ $r-icon: 20px;
     box-shadow: 0 0 0 12px rgba(79, 157, 86, 0);
   }
 }
-@keyframes ldIcPulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(111, 164, 78, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 0 5px rgba(111, 164, 78, 0);
-  }
-}
 @keyframes ldDotB {
   0%,
   80%,
@@ -833,42 +1012,42 @@ $r-icon: 20px;
   }
 }
 
-// ─── Dark mode (Quasar เพิ่ม .body--dark ที่ <body>) ─────────────────────────
+// ─── Dark mode ───
 :global(.body--dark) .vetiver-page {
   background: #14180f;
   color: #e8ebdf;
 }
-:global(.body--dark) .home-title,
-:global(.body--dark) .state-title {
-  color: #e8ebdf;
-}
-:global(.body--dark) .app-tile {
+:global(.body--dark) .progress-card,
+:global(.body--dark) .sec-card {
   background: #1f2418;
   border-color: #2a301f;
 }
-:global(.body--dark) .app-label {
-  color: #e0e4d6;
+:global(.body--dark) .sec-heading,
+:global(.body--dark) .progress-label,
+:global(.body--dark) .state-title {
+  color: #e8ebdf;
 }
-:global(.body--dark) .sk {
-  background: linear-gradient(90deg, #21271a 25%, #2a301f 50%, #21271a 75%);
-  background-size: 200% 100%;
+:global(.body--dark) .item-text {
+  color: #d6dac9;
+}
+:global(.body--dark) .sec-badge--muted {
+  background: #2a301f;
 }
 
-// ─── Responsive / a11y ───────────────────────────────────────────────────────
-@media (max-width: 560px) {
-  .app-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
+// ─── a11y ───
 @media (prefers-reduced-motion: reduce) {
-  .app-tile,
+  .sec-card,
   .sk,
   .ld-orb-bg,
   .ld-orb-ring1,
   .ld-orb-ring2,
-  .ld-step-ic--active,
-  .ld-dot {
+  .ld-dot,
+  .progress-fill {
     animation: none !important;
+  }
+  .expand-enter-active,
+  .expand-leave-active {
+    transition: none;
   }
 }
 </style>
