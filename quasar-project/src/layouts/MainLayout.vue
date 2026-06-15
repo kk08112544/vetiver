@@ -19,7 +19,7 @@
 
         <q-toolbar-title class="app-title">
           <span class="app-title-leaf"><q-icon name="grass" size="18px" /></span>
-          <span class="app-title-text"> ระบบบริหารคลังความรู้หญ้าแฝก </span>
+          <span class="app-title-text">ระบบบริหารคลังความรู้หญ้าแฝก</span>
         </q-toolbar-title>
 
         <q-space />
@@ -57,11 +57,11 @@
       </q-toolbar>
     </q-header>
 
-    <!-- ===== SIDEBAR DRAWER (ย่อ/ขยายได้) ===== -->
+    <!-- ===== SIDEBAR DRAWER ===== -->
     <q-drawer
       v-model="leftDrawerOpen"
       show-if-above
-      :width="280"
+      :width="SIDEBAR_WIDTH"
       :mini="effectiveMini"
       :mini-width="64"
       :breakpoint="768"
@@ -76,7 +76,7 @@
           <div class="drawer-brand-icon">
             <q-icon name="grass" size="22px" color="white" />
           </div>
-          <span v-if="!effectiveMini" class="drawer-brand-name"> คลังความรู้หญ้าแฝก </span>
+          <span v-if="!effectiveMini" class="drawer-brand-name">คลังความรู้หญ้าแฝก</span>
         </div>
 
         <!-- Nav -->
@@ -135,11 +135,7 @@
                   <q-avatar
                     size="30px"
                     rounded
-                    :style="
-                      activeId === m.id
-                        ? { background: 'rgba(255,255,255,0.18)', color: '#fff' }
-                        : { background: m.accent + '22', color: m.accent }
-                    "
+                    :style="avatarStyle(m)"
                   >
                     <q-icon :name="m.icon" size="18px" />
                   </q-avatar>
@@ -166,7 +162,7 @@
       </div>
     </q-drawer>
 
-    <!-- ===== PAGE ===== -->
+    <!-- ===== PAGE CONTENT ===== -->
     <q-page-container>
       <div class="page-content">
         <router-view />
@@ -249,7 +245,7 @@ import { useRouter, useRoute } from 'vue-router';
 import axios, { type AxiosError } from 'axios';
 import { api } from 'src/boot/axios';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface TopicApi {
   id?: number | string;
   slug: string;
@@ -258,6 +254,10 @@ interface TopicApi {
   icon?: string;
   accent?: string;
   _count?: { sections?: number };
+}
+interface TopicResponse {
+  topic?: TopicApi[];
+  message?: string;
 }
 interface MenuItem {
   id: string;
@@ -268,37 +268,41 @@ interface MenuItem {
   accent: string;
 }
 
-// ─── Design defaults ─────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
+const SIDEBAR_WIDTH = 280;
 const ACCENT_PALETTE = ['#6fa44e', '#3f7d3a', '#a9772f', '#4f9d56', '#3f8fb0', '#7a8c3a'] as const;
 const ICON_PALETTE = ['eco', 'grass', 'landscape', 'water_drop', 'recycling', 'park'] as const;
+const AUTH_KEYS: readonly string[] = [
+  'accessToken',
+  'refreshToken',
+  'username',
+  'userId',
+  'firstName',
+  'role',
+];
+
 const pick = <T,>(arr: readonly T[], i: number): T => arr[i % arr.length]!;
 
+// ─── Composables ──────────────────────────────────────────────────────────────
 const $q = useQuasar();
-const router = useRouter();
 const route = useRoute();
+const router = useRouter();
 
-// ─── Platform: อุปกรณ์นี้ hover ได้จริงไหม (เมาส์ vs ทัช) ─────────────────────
-/**
- * true = มีเมาส์/trackpad, false = touch ล้วน → ปิด logic ที่พึ่ง hover
- * ใช้ matchMedia('(hover: hover)') แทน $q.platform.has.hover
- * เพราะ type ของ Quasar ไม่ได้ประกาศ field `hover` ไว้
- */
+// ─── Platform: อุปกรณ์นี้ hover ได้จริงไหม (เมาส์ vs ทัช) ──────────────────────
+// true = มีเมาส์/trackpad, false = touch ล้วน → ปิด logic ที่พึ่ง hover
 const canHover = ref<boolean>(
   typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(hover: hover) and (pointer: fine)').matches,
 );
 
-// ─── Drawer state (ย่อ/ขยาย เหมือน backoffice) ───────────────────────────────
+// ─── Sidebar State ────────────────────────────────────────────────────────────
 const leftDrawerOpen = ref<boolean>(true);
 const sidebarMini = ref<boolean>(false);
 const sidebarHovered = ref<boolean>(false);
 
-/**
- * สถานะ mini ที่ "ใช้แสดงผลจริง"
- * - ถ้า user สั่งย่อ (sidebarMini) แต่กำลัง hover อยู่บนอุปกรณ์ที่มีเมาส์ → คลายเป็นเต็มชั่วคราว
- * - บนทัช (canHover=false) จะไม่มี hover-expand → mini คงสภาพย่อ (แต่จริงๆ ทัชจะใช้ drawer overlay เต็มอยู่แล้ว)
- */
+// สถานะ mini ที่ใช้แสดงผลจริง: ถ้า user สั่งย่อแต่กำลัง hover (อุปกรณ์ที่มีเมาส์)
+// → คลายเป็นเต็มชั่วคราว
 const effectiveMini = computed<boolean>(() => {
   if (!sidebarMini.value) return false;
   if (canHover.value && sidebarHovered.value) return false;
@@ -309,56 +313,26 @@ const toggleLeftDrawer = (): void => {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 };
 
-/** ปุ่มย่อ/ขยาย sidebar (จอใหญ่) */
 const toggleMini = (): void => {
   sidebarMini.value = !sidebarMini.value;
   sidebarHovered.value = false;
 };
 
-/** hover-expand ทำงานเฉพาะอุปกรณ์ที่ hover ได้ */
 const onSidebarHover = (state: boolean): void => {
   if (sidebarMini.value && canHover.value) sidebarHovered.value = state;
 };
 
-// ─── Menu state ──────────────────────────────────────────────────────────────
+const avatarStyle = (m: MenuItem): Record<string, string> =>
+  activeId.value === m.id
+    ? { background: 'rgba(255,255,255,0.18)', color: '#fff' }
+    : { background: `${m.accent}22`, color: m.accent };
+
+// ─── Menu State ───────────────────────────────────────────────────────────────
 const menu = ref<MenuItem[]>([]);
 const loading = ref<boolean>(true);
 const error = ref<string | null>(null);
 const activeId = computed<string>(() => String(route.params.id ?? ''));
 
-// ─── Auth state (อ่านจาก localStorage เหมือน backoffice) ─────────────────────
-const firstName = ref<string>('');
-const userRole = ref<string>('');
-const isLoggedIn = computed<boolean>(() => !!firstName.value);
-const isSuperAdmin = computed<boolean>(() => userRole.value === 'superAdmin');
-
-const readLS = (key: string): string => {
-  if (typeof window === 'undefined') return '';
-  return window.localStorage.getItem(key) ?? '';
-};
-const syncAuthState = (): void => {
-  firstName.value = readLS('firstName');
-  userRole.value = readLS('role');
-};
-
-const AUTH_KEYS: readonly string[] = [
-  'accessToken',
-  'refreshToken',
-  'username',
-  'userId',
-  'firstName',
-  'role',
-];
-const handleLogout = (): void => {
-  if (typeof window !== 'undefined') {
-    AUTH_KEYS.forEach((k) => window.localStorage.removeItem(k));
-  }
-  syncAuthState();
-  // TODO: ปรับ path ให้ตรงกับหน้า login ของโปรเจกต์ (ถ้ามี)
-  void router.push('/login');
-};
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
 const normalizeMenu = (raw: TopicApi, i: number): MenuItem => ({
   id: String(raw.id ?? raw.slug),
   slug: raw.slug,
@@ -367,6 +341,7 @@ const normalizeMenu = (raw: TopicApi, i: number): MenuItem => ({
   icon: raw.icon?.trim() || pick(ICON_PALETTE, i),
   accent: raw.accent?.trim() || pick(ACCENT_PALETTE, i),
 });
+
 const resolveError = (e: unknown): string => {
   const ax = e as AxiosError;
   if (ax.response?.status) return `เซิร์ฟเวอร์ตอบกลับสถานะ ${ax.response.status}`;
@@ -374,7 +349,6 @@ const resolveError = (e: unknown): string => {
   return 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้';
 };
 
-// ─── Data fetching ──────────────────────────────────────────────────────────
 let abortController: AbortController | null = null;
 const fetchTopics = async (): Promise<void> => {
   abortController?.abort();
@@ -382,8 +356,8 @@ const fetchTopics = async (): Promise<void> => {
   loading.value = true;
   error.value = null;
   try {
-    const res = await api.get<TopicApi[]>('/topic/all', { signal: abortController.signal });
-    const data = Array.isArray(res.data) ? res.data : [];
+    const res = await api.get<TopicResponse>('/topic/all', { signal: abortController.signal });
+    const data = Array.isArray(res.data?.topic) ? res.data.topic : [];
     menu.value = data.map(normalizeMenu);
   } catch (e) {
     if (axios.isCancel(e)) return;
@@ -394,13 +368,36 @@ const fetchTopics = async (): Promise<void> => {
   }
 };
 
-// ─── Actions ────────────────────────────────────────────────────────────────
-/** ปิด drawer อัตโนมัติบนจอเล็กเมื่อกดเมนู */
+// ─── Auth State ───────────────────────────────────────────────────────────────
+const firstName = ref<string>('');
+const userRole = ref<string>('');
+const isLoggedIn = computed<boolean>(() => !!firstName.value);
+const isSuperAdmin = computed<boolean>(() => userRole.value === 'superAdmin');
+
+const readLS = (key: string): string => {
+  if (typeof window === 'undefined') return '';
+  return window.localStorage.getItem(key) ?? '';
+};
+
+const syncAuthState = (): void => {
+  firstName.value = readLS('firstName');
+  userRole.value = readLS('role');
+};
+
+const handleLogout = (): void => {
+  if (typeof window !== 'undefined') {
+    AUTH_KEYS.forEach((key) => window.localStorage.removeItem(key));
+  }
+  syncAuthState();
+  router.push('/login').catch(console.error);
+};
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+// ปิด drawer อัตโนมัติบนจอเล็กเมื่อกดเมนู
 const onNavClick = (): void => {
   if (!$q.screen.gt.sm) leftDrawerOpen.value = false;
 };
 
-// ปิด drawer ทุกครั้งที่เปลี่ยนหน้า (จอเล็ก) + sync auth
 watch(
   () => route.params.id,
   () => {
@@ -409,7 +406,7 @@ watch(
 );
 watch(() => route.path, syncAuthState, { immediate: true });
 
-// ─── Lifecycle ──────────────────────────────────────────────────────────────
+// ─── Lifecycle ────────────────────────────────────────────────────────────────
 onMounted(() => {
   void fetchTopics();
   syncAuthState();
@@ -422,23 +419,27 @@ onUnmounted(() => {
 <style scoped lang="scss">
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600;700&display=swap');
 
-/* ── palette (ใบ/ดิน/น้ำ) ── */
+// ─── Design Tokens ────────────────────────────────────────────────────────────
 $forest: #2f5e34;
 $forest-deep: #1b3a20;
 $forest-btn: #3f7d3a;
 $leaf-bright: #a7d36a;
+$leaf-soft: #d9efb2;
+$ink: #1a221a;
 
-/* ═════════ HEADER ═════════ */
+// ─── HEADER ───────────────────────────────────────────────────────────────────
 .app-header {
-  background: linear-gradient(135deg, #16320f 0%, #2f5e34 50%, #3f7d3a 100%) !important;
+  background: linear-gradient(135deg, #16320f 0%, $forest 50%, $forest-btn 100%) !important;
   box-shadow: 0 2px 20px rgba(20, 40, 20, 0.4) !important;
 }
+
 .app-toolbar {
   min-height: 58px;
   height: auto;
   padding: 8px 16px;
   gap: 12px;
 }
+
 .header-icon-btn {
   background: rgba(255, 255, 255, 0.1) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -447,18 +448,21 @@ $leaf-bright: #a7d36a;
     background 0.2s,
     transform 0.15s !important;
   flex-shrink: 0;
+
+  // feedback แบบทัช: กดแล้วเห็นผลทันที (ใช้ได้ทุกอุปกรณ์)
+  &:active {
+    background: rgba(255, 255, 255, 0.25) !important;
+    transform: scale(0.96);
+  }
 }
-/* feedback แบบทัช: กดแล้วเห็นผลทันที (ใช้ได้ทุกอุปกรณ์) */
-.header-icon-btn:active {
-  background: rgba(255, 255, 255, 0.25) !important;
-  transform: scale(0.96);
-}
+
 .app-title {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
+
 .app-title-leaf {
   display: grid;
   place-items: center;
@@ -466,10 +470,11 @@ $leaf-bright: #a7d36a;
   height: 32px;
   border-radius: 50%;
   flex-shrink: 0;
-  background: radial-gradient(circle at 35% 30%, #d6f0a0 0%, #8cc152 40%, #3f7d3a 100%);
+  background: radial-gradient(circle at 35% 30%, #d6f0a0 0%, #8cc152 40%, $forest-btn 100%);
   color: #16320f;
   box-shadow: 0 0 14px rgba(167, 211, 106, 0.5);
 }
+
 .app-title-text {
   font-family: 'Kanit', sans-serif;
   font-size: clamp(13px, 3.5vw, 1.05rem);
@@ -480,6 +485,7 @@ $leaf-bright: #a7d36a;
   line-height: 1.35;
   letter-spacing: 0.2px;
 }
+
 .user-badge {
   display: flex;
   align-items: center;
@@ -496,11 +502,13 @@ $leaf-bright: #a7d36a;
   white-space: nowrap;
   flex-shrink: 0;
 }
+
 .super-crown {
   display: flex;
   align-items: center;
   animation: crown-glow 2.2s ease-in-out infinite;
 }
+
 @keyframes crown-glow {
   0%,
   100% {
@@ -512,12 +520,14 @@ $leaf-bright: #a7d36a;
     opacity: 1;
   }
 }
+
 .header-dots {
   display: flex;
   align-items: center;
   gap: 5px;
   flex-shrink: 0;
 }
+
 .dot {
   border-radius: 50%;
   display: block;
@@ -541,6 +551,7 @@ $leaf-bright: #a7d36a;
   background: #8cc152;
   animation-delay: 0.4s;
 }
+
 @keyframes dot-pulse {
   0%,
   100% {
@@ -553,17 +564,19 @@ $leaf-bright: #a7d36a;
   }
 }
 
-/* ═════════ DRAWER ═════════ */
+// ─── DRAWER ───────────────────────────────────────────────────────────────────
 .app-drawer :deep(.q-drawer__content) {
   display: flex;
   flex-direction: column;
 }
+
 .drawer-body {
   display: flex;
   flex-direction: column;
   height: 100%;
   background: #fff;
 }
+
 .drawer-brand {
   display: flex;
   align-items: center;
@@ -572,6 +585,7 @@ $leaf-bright: #a7d36a;
   border-bottom: 1px solid rgba(20, 40, 20, 0.08);
   flex-shrink: 0;
 }
+
 .drawer-brand-icon {
   width: 38px;
   height: 38px;
@@ -580,23 +594,26 @@ $leaf-bright: #a7d36a;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #8cc152, #3f7d3a);
+  background: linear-gradient(135deg, #8cc152, $forest-btn);
   box-shadow: 0 4px 12px -4px rgba(63, 125, 58, 0.7);
 }
+
 .drawer-brand-name {
   font-family: 'Kanit', sans-serif;
   font-size: 1rem;
   font-weight: 700;
-  color: #1a221a;
+  color: $ink;
   white-space: nowrap;
 }
 
 .drawer-scroll {
   flex: 1;
 }
+
 .nav-wrap {
   padding: 10px 8px;
 }
+
 .nav-section-label {
   font-family: 'Kanit', sans-serif;
   letter-spacing: 1px;
@@ -607,58 +624,64 @@ $leaf-bright: #a7d36a;
   padding: 6px 10px 8px;
 }
 
-/* nav item */
 .nav-item {
   border-radius: 12px;
   margin-bottom: 2px;
   min-height: 48px;
-  color: #1a221a;
+  color: $ink;
   transition:
     background 0.2s ease,
     transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1),
     box-shadow 0.2s ease;
-}
-.nav-item :deep(.q-avatar) {
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-/* feedback ตอนแตะ (ทุกอุปกรณ์) */
-.nav-item:active {
-  background: rgba(111, 164, 78, 0.16);
+
+  :deep(.q-avatar) {
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  // feedback ตอนแตะ (ทุกอุปกรณ์)
+  &:active {
+    background: rgba(111, 164, 78, 0.16);
+  }
 }
 
 .nav-avatar {
   min-width: 40px;
 }
+
 .nav-label {
   font-family: 'Sarabun', sans-serif;
   font-size: 0.93rem;
   font-weight: 600;
-  color: #1a221a;
+  color: $ink;
 }
+
 .nav-caption {
   font-family: 'Sarabun', sans-serif;
   font-size: 0.74rem;
   color: #8b9183;
 }
+
 .nav-item--active {
-  background: linear-gradient(135deg, #1b3a20, #2f5e34, #3f7d3a);
+  background: linear-gradient(135deg, $forest-deep, $forest, $forest-btn);
   border-left: 3px solid #4f9d56;
   box-shadow: 0 6px 16px -8px rgba(47, 94, 52, 0.8);
-}
-.nav-item--active .nav-label {
-  color: #fff;
-}
-.nav-item--active .nav-caption {
-  color: rgba(255, 255, 255, 0.75);
+
+  .nav-label {
+    color: #fff;
+  }
+  .nav-caption {
+    color: rgba(255, 255, 255, 0.75);
+  }
 }
 
-/* skeleton / feedback */
+// skeleton / feedback
 .nav-item--skeleton {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 9px 12px;
 }
+
 .nav-feedback {
   display: flex;
   flex-direction: column;
@@ -669,24 +692,27 @@ $leaf-bright: #a7d36a;
   color: #7b8270;
   font-family: 'Sarabun', sans-serif;
   font-size: 0.86rem;
+
+  p {
+    margin: 0;
+    word-break: break-word;
+  }
+
+  &--error {
+    color: #9c5a3c;
+  }
+  &--mini {
+    padding: 18px 4px;
+  }
 }
-.nav-feedback p {
-  margin: 0;
-  word-break: break-word;
-}
-.nav-feedback--error {
-  color: #9c5a3c;
-}
-.nav-feedback--mini {
-  padding: 18px 4px;
-}
+
 .nav-retry {
   margin-top: 4px;
   font-family: 'Kanit', sans-serif;
   color: $forest-btn;
 }
 
-/* collapse toggle */
+// collapse toggle
 .drawer-collapse {
   display: flex;
   align-items: center;
@@ -701,28 +727,31 @@ $leaf-bright: #a7d36a;
   background: #fff;
   flex-shrink: 0;
   transition: background 0.2s ease;
+
+  &:active {
+    background: rgba(111, 164, 78, 0.16);
+  }
 }
-.drawer-collapse:active {
-  background: rgba(111, 164, 78, 0.16);
-}
+
 .drawer-collapse-text {
   font-family: 'Kanit', sans-serif;
   font-size: 0.82rem;
   white-space: nowrap;
 }
 
-/* ═════════ PAGE ═════════ */
+// ─── PAGE CONTENT ─────────────────────────────────────────────────────────────
 .page-content {
   min-height: 60vh;
   background: linear-gradient(150deg, #f3f5ec 0%, #eef3e6 50%, #f1f6ea 100%);
 }
 
-/* ═════════ FOOTER (โทนเขียว · โครงสร้างตาม backoffice) ═════════ */
+// ─── FOOTER ───────────────────────────────────────────────────────────────────
 .site-footer {
-  background: linear-gradient(135deg, #14301a 0%, #1b3a20 50%, #2f5e34 100%) !important;
+  background: linear-gradient(135deg, #14301a 0%, $forest-deep 50%, $forest 100%) !important;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   font-family: 'Sarabun', sans-serif;
 }
+
 .footer-inner {
   max-width: 1100px;
   margin: 0 auto;
@@ -731,6 +760,7 @@ $leaf-bright: #a7d36a;
     padding: 2rem 1rem 1.25rem;
   }
 }
+
 .footer-grid {
   display: grid;
   grid-template-columns: 2fr 1fr 1.5fr;
@@ -745,9 +775,11 @@ $leaf-bright: #a7d36a;
     text-align: center;
   }
 }
+
 .footer-col {
   min-width: 0;
 }
+
 .footer-col-title {
   font-family: 'Kanit', sans-serif;
   font-size: 0.75rem;
@@ -757,6 +789,7 @@ $leaf-bright: #a7d36a;
   text-transform: uppercase;
   margin-bottom: 1rem;
 }
+
 .footer-brand {
   display: flex;
   align-items: center;
@@ -766,6 +799,7 @@ $leaf-bright: #a7d36a;
     justify-content: center;
   }
 }
+
 .footer-brand-icon {
   width: 36px;
   height: 36px;
@@ -777,18 +811,21 @@ $leaf-bright: #a7d36a;
   justify-content: center;
   flex-shrink: 0;
 }
+
 .footer-brand-name {
   font-family: 'Kanit', sans-serif;
   font-size: 1rem;
   font-weight: 700;
   color: #fff;
 }
+
 .footer-desc {
   font-size: 0.84rem;
   color: rgba(255, 255, 255, 0.6);
   line-height: 1.75;
   margin: 0;
 }
+
 .footer-links,
 .footer-contacts {
   display: flex;
@@ -798,6 +835,7 @@ $leaf-bright: #a7d36a;
     align-items: center;
   }
 }
+
 .footer-link {
   display: inline-flex;
   align-items: center;
@@ -811,14 +849,17 @@ $leaf-bright: #a7d36a;
   :deep(.q-icon) {
     transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
+
+  &:active {
+    color: $leaf-soft;
+  }
+
+  &--active {
+    color: $leaf-soft;
+    font-weight: 600;
+  }
 }
-.footer-link:active {
-  color: #d9efb2;
-}
-.footer-link--active {
-  color: #d9efb2;
-  font-weight: 600;
-}
+
 .footer-contact-item {
   display: flex;
   align-items: flex-start;
@@ -831,17 +872,20 @@ $leaf-bright: #a7d36a;
     align-items: center;
   }
 }
+
 .footer-contact-icon {
   flex-shrink: 0;
   margin-top: 2px;
   color: $leaf-bright;
   opacity: 0.85;
 }
+
 .footer-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.08);
   margin: 2rem 0 1.25rem;
 }
+
 .footer-bottom {
   display: flex;
   align-items: center;
@@ -852,19 +896,18 @@ $leaf-bright: #a7d36a;
   color: rgba(255, 255, 255, 0.4);
   text-align: center;
   line-height: 1.6;
-}
-.footer-bottom-sep {
-  opacity: 0.4;
-}
-@media (max-width: 480px) {
-  .footer-bottom {
+  @media (max-width: 480px) {
     flex-direction: column;
     gap: 4px;
   }
 }
 
-/* ═════════ HOVER EFFECTS — เฉพาะอุปกรณ์ที่มีเมาส์จริง ═════════ */
-/* gate ด้วย (hover: hover) เพื่อกัน "hover ค้าง" บนทัช (tap=hover) */
+.footer-bottom-sep {
+  opacity: 0.4;
+}
+
+// ─── HOVER EFFECTS — เฉพาะอุปกรณ์ที่มีเมาส์จริง ───────────────────────────────
+// gate ด้วย (hover: hover) เพื่อกัน "hover ค้าง" บนทัช (tap=hover)
 @media (hover: hover) and (pointer: fine) {
   .header-icon-btn:hover {
     background: rgba(255, 255, 255, 0.2) !important;
@@ -878,14 +921,14 @@ $leaf-bright: #a7d36a;
     transform: scale(1.14) rotate(-6deg);
   }
   .nav-item--active:hover {
-    background: linear-gradient(135deg, #1b3a20, #2f5e34, #3f7d3a);
+    background: linear-gradient(135deg, $forest-deep, $forest, $forest-btn);
     transform: translateX(6px);
   }
   .drawer-collapse:hover {
     background: rgba(111, 164, 78, 0.1);
   }
   .footer-link:hover {
-    color: #d9efb2;
+    color: $leaf-soft;
     transform: translateX(6px);
   }
   .footer-link:hover :deep(.q-icon) {
@@ -893,7 +936,7 @@ $leaf-bright: #a7d36a;
   }
 }
 
-/* a11y */
+// ─── a11y ─────────────────────────────────────────────────────────────────────
 @media (prefers-reduced-motion: reduce) {
   .header-icon-btn,
   .nav-item,

@@ -6,4 +6,9 @@ export const MESSAGE = {
     LOGIN_SUCCESS: 'เข้าสู่ระบบสำเร็จ',
     RENEW_TOKEN_SUCCESS: 'รีนิวโทเค็นสำเร็จ',
   },
+  TOPIC: {
+    ALL_SUCCESS: 'ดึงข้อมูลทั้งหมด',
+    RETRIVED_SUCCESS: 'ดึงข้อมูลนั้นๆสำเร็จ',
+    PAGINATED_SUCCESS: 'ดึงข้อมูลและแบ่งหน้าสำเร็จ',
+  },
 };

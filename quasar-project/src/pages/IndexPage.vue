@@ -156,7 +156,10 @@ interface TopicApi {
   intro?: string;
   _count?: { sections?: number };
 }
-
+interface TopicResponse {
+  topic?: TopicApi[];
+  message?: string;
+}
 /** view-model ที่ component ใช้จริง — normalize แล้ว ทุก field มีค่าแน่นอน */
 interface Topic {
   id: string; // ใช้เป็น param ของ route /section/:id (id ถ้ามี ไม่งั้น slug)
@@ -261,8 +264,8 @@ const fetchTopics = async (): Promise<void> => {
     loadingStep.value = 0;
     animatePct(loadingSteps[0].pct);
 
-    const res = await api.get<TopicApi[]>('/topic/all', { signal: abortController.signal });
-    const data = Array.isArray(res.data) ? res.data : [];
+    const res = await api.get<TopicResponse>('/topic/all', { signal: abortController.signal });
+    const data = Array.isArray(res.data?.topic) ? res.data.topic : [];
 
     loadingStep.value = 1;
     animatePct(loadingSteps[1].pct);
