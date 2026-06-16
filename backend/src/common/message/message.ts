@@ -11,4 +11,7 @@ export const MESSAGE = {
     RETRIVED_SUCCESS: 'ดึงข้อมูลนั้นๆสำเร็จ',
     PAGINATED_SUCCESS: 'ดึงข้อมูลและแบ่งหน้าสำเร็จ',
   },
+  SECTION:{
+    SECTION_TOPIC_ID:'ดึงข้อมูลของหัวข้อนั้นๆสำเร็จ'
+  }
 };

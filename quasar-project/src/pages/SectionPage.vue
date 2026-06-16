@@ -166,7 +166,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios, { type AxiosError } from 'axios';
 import { api } from 'src/boot/axios';
@@ -200,12 +200,15 @@ interface SectionApi {
   topic?: TopicMeta;
 }
 /** envelope ของ list endpoint */
-interface ListResponse {
-  data: SectionApi[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+interface SectionResponse {
+  section: {
+    data: SectionApi[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  message: string;
 }
 /** view-model ที่ใช้จริง */
 interface Section {
@@ -360,10 +363,10 @@ const fetchSections = async (): Promise<void> => {
     loadingStep.value = 0;
     animatePct(loadingSteps[0].pct);
 
-    const res = await api.get<ListResponse>(`/section/topic/${topicId.value}`, {
+    const res = await api.get<SectionResponse>(`/section/topic/${topicId.value}`, {
       signal: abortController.signal,
     });
-    const list = Array.isArray(res.data?.data) ? res.data.data : [];
+    const list = Array.isArray(res.data?.section?.data) ? res.data.section.data : [];
 
     loadingStep.value = 1;
     animatePct(loadingSteps[1].pct);
@@ -397,10 +400,14 @@ const goBack = (): void => {
   else void router.push({ path: '/' });
 };
 
+watch(topicId, (id) => {
+  if (id) void fetchSections();
+})
+
 // ─── Lifecycle ──────────────────────────────────────────────────────────────
-onMounted(() => {
-  void fetchSections();
-});
+watch(topicId, (id) => {
+  if (id) void fetchSections();
+}, { immediate: true });
 onUnmounted(() => {
   abortController?.abort();
   if (pctTimer) clearInterval(pctTimer);

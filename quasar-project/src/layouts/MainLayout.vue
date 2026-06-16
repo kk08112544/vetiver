@@ -24,32 +24,8 @@
 
         <q-space />
 
-        <!-- ผู้ใช้ที่ล็อกอิน -->
-        <div v-if="isLoggedIn" class="user-badge gt-xs">
-          <q-icon name="account_circle" size="16px" />
-          <span>{{ firstName }}</span>
-          <div v-if="isSuperAdmin" class="super-crown">
-            <q-icon name="workspace_premium" size="16px" color="amber-4" />
-            <q-tooltip>Super Administrator</q-tooltip>
-          </div>
-        </div>
-
-        <q-btn
-          v-if="isLoggedIn"
-          flat
-          round
-          dense
-          icon="logout"
-          color="white"
-          size="md"
-          class="header-icon-btn"
-          @click="handleLogout"
-        >
-          <q-tooltip>ออกจากระบบ</q-tooltip>
-        </q-btn>
-
-        <!-- ยังไม่ล็อกอิน → จุดเคลื่อนไหว -->
-        <div v-else class="header-dots gt-xs">
+        <!-- จุดเคลื่อนไหว -->
+        <div class="header-dots gt-xs">
           <span class="dot dot-1" />
           <span class="dot dot-2" />
           <span class="dot dot-3" />
@@ -132,11 +108,7 @@
                 @click="onNavClick"
               >
                 <q-item-section avatar class="nav-avatar">
-                  <q-avatar
-                    size="30px"
-                    rounded
-                    :style="avatarStyle(m)"
-                  >
+                  <q-avatar size="30px" rounded :style="avatarStyle(m)">
                     <q-icon :name="m.icon" size="18px" />
                   </q-avatar>
                 </q-item-section>
@@ -241,7 +213,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
-import { useRouter, useRoute } from 'vue-router';
+import { useRoute } from 'vue-router';
 import axios, { type AxiosError } from 'axios';
 import { api } from 'src/boot/axios';
 
@@ -272,21 +244,12 @@ interface MenuItem {
 const SIDEBAR_WIDTH = 280;
 const ACCENT_PALETTE = ['#6fa44e', '#3f7d3a', '#a9772f', '#4f9d56', '#3f8fb0', '#7a8c3a'] as const;
 const ICON_PALETTE = ['eco', 'grass', 'landscape', 'water_drop', 'recycling', 'park'] as const;
-const AUTH_KEYS: readonly string[] = [
-  'accessToken',
-  'refreshToken',
-  'username',
-  'userId',
-  'firstName',
-  'role',
-];
 
 const pick = <T,>(arr: readonly T[], i: number): T => arr[i % arr.length]!;
 
 // ─── Composables ──────────────────────────────────────────────────────────────
 const $q = useQuasar();
 const route = useRoute();
-const router = useRouter();
 
 // ─── Platform: อุปกรณ์นี้ hover ได้จริงไหม (เมาส์ vs ทัช) ──────────────────────
 // true = มีเมาส์/trackpad, false = touch ล้วน → ปิด logic ที่พึ่ง hover
@@ -368,30 +331,6 @@ const fetchTopics = async (): Promise<void> => {
   }
 };
 
-// ─── Auth State ───────────────────────────────────────────────────────────────
-const firstName = ref<string>('');
-const userRole = ref<string>('');
-const isLoggedIn = computed<boolean>(() => !!firstName.value);
-const isSuperAdmin = computed<boolean>(() => userRole.value === 'superAdmin');
-
-const readLS = (key: string): string => {
-  if (typeof window === 'undefined') return '';
-  return window.localStorage.getItem(key) ?? '';
-};
-
-const syncAuthState = (): void => {
-  firstName.value = readLS('firstName');
-  userRole.value = readLS('role');
-};
-
-const handleLogout = (): void => {
-  if (typeof window !== 'undefined') {
-    AUTH_KEYS.forEach((key) => window.localStorage.removeItem(key));
-  }
-  syncAuthState();
-  router.push('/login').catch(console.error);
-};
-
 // ─── Navigation ───────────────────────────────────────────────────────────────
 // ปิด drawer อัตโนมัติบนจอเล็กเมื่อกดเมนู
 const onNavClick = (): void => {
@@ -404,12 +343,10 @@ watch(
     if (!$q.screen.gt.sm) leftDrawerOpen.value = false;
   },
 );
-watch(() => route.path, syncAuthState, { immediate: true });
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 onMounted(() => {
   void fetchTopics();
-  syncAuthState();
 });
 onUnmounted(() => {
   abortController?.abort();

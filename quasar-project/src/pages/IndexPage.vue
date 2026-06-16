@@ -42,8 +42,8 @@
     <!-- ═══════════════ LAUNCHER (เมนูหลัก) ═══════════════ -->
     <section v-else class="home">
       <div class="home-head">
-        <span class="home-eyebrow">เมนูหลัก</span>
-        <h2 class="home-title">เลือกหัวข้อที่ต้องการเรียนรู้</h2>
+        <h2 class="home-title">อยากทราบเรื่องอะไรครับ</h2>
+        <span class="home-eyebrow">เลือกหัวข้อที่ต้องการเรียนรู้</span>
       </div>
 
       <div class="app-grid">

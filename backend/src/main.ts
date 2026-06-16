@@ -10,11 +10,11 @@ async function bootstrap() {
   console.log('>>> MAIN.TS เวอร์ชันใหม่ กำลังรัน <<<'); // marker
 
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('vetiver-grass/api/v1');
+  app.setGlobalPrefix('api/v1');
   app.enableCors({ origin: true, credentials: true });
 
   await app.listen(3008); // hardcode ตรงๆ ไม่พึ่ง env
-  console.log('🚀 รันที่ http://localhost:3008/vetiver-grass/api/v1');
+  console.log('🚀 รันที่ http://localhost:3008/api/v1');
 }
 
 bootstrap().catch((err) => {
